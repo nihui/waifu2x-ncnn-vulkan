@@ -20,5 +20,8 @@ waifu2x.exe [input image] [output png] [noise=-1/0/1/2/3] [scale=1/2]
 ## upscale 2x with browser
 ![browser](https://raw.githubusercontent.com/nihui/waifu2x-ncnn-vulkan/master/1.png)
 ## upscale 2x with waifu2x noise=2 scale=2
+```
+waifu2x.exe origin.jpg output.png 2 2
+```
 ![waifu2x](https://raw.githubusercontent.com/nihui/waifu2x-ncnn-vulkan/master/2.png)
 

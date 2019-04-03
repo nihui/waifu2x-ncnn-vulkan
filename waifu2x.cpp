@@ -76,8 +76,6 @@ int main(int argc, char** argv)
         ncnn::Layer* pre_padding = 0;
         ncnn::Layer* normalize = 0;
         ncnn::Layer* denormalize = 0;
-        ncnn::Layer* interp_up2x = 0;
-        ncnn::Layer* interp_down2x = 0;
         ncnn::Layer* cast_float32_to_float16 = 0;
         ncnn::Layer* cast_float16_to_float32 = 0;
 
@@ -134,39 +132,6 @@ int main(int argc, char** argv)
                 denormalize->load_param(pd);
 
                 denormalize->create_pipeline();
-            }
-
-            if (scale == 2)
-            {
-                {
-                    interp_up2x = ncnn::create_layer(ncnn::LayerType::Interp);
-                    interp_up2x->vkdev = vkdev;
-
-                    ncnn::ParamDict pd;
-                    pd.set(0, 3);
-                    pd.set(1, 2.f);
-                    pd.set(2, 2.f);
-                    pd.use_vulkan_compute = 1;
-
-                    interp_up2x->load_param(pd);
-
-                    interp_up2x->create_pipeline();
-                }
-
-                {
-                    interp_down2x = ncnn::create_layer(ncnn::LayerType::Interp);
-                    interp_down2x->vkdev = vkdev;
-
-                    ncnn::ParamDict pd;
-                    pd.set(0, 3);
-                    pd.set(1, 0.5f);
-                    pd.set(2, 0.5f);
-                    pd.use_vulkan_compute = 1;
-
-                    interp_down2x->load_param(pd);
-
-                    interp_down2x->create_pipeline();
-                }
             }
 
             if (vkdev->info.support_fp16_storage)
@@ -236,13 +201,6 @@ int main(int argc, char** argv)
                 in_gpu = in_gpu_fp16;
             }
 
-            if (scale == 2)
-            {
-                ncnn::VkMat in_gpu_up2x;
-                interp_up2x->forward(in_gpu, in_gpu_up2x, cmd, opt);
-                in_gpu = in_gpu_up2x;
-            }
-
             // prepadding
             {
                 ncnn::VkMat in_gpu_padded;
@@ -263,13 +221,6 @@ int main(int argc, char** argv)
 
             ncnn::VkMat out_gpu;
             ex.extract("Eltwise4", out_gpu, cmd);
-
-            if (scale == 2)
-            {
-                ncnn::VkMat out_gpu_down2x;
-                interp_down2x->forward(out_gpu, out_gpu_down2x, cmd, opt);
-                out_gpu = out_gpu_down2x;
-            }
 
             // denormalize
             {
@@ -313,15 +264,6 @@ int main(int argc, char** argv)
 
         // cleanup preprocess and postprocess operator
         {
-            if (scale == 2)
-            {
-                interp_up2x->destroy_pipeline();
-                delete interp_up2x;
-
-                interp_down2x->destroy_pipeline();
-                delete interp_down2x;
-            }
-
             if (vkdev->info.support_fp16_storage)
             {
                 cast_float32_to_float16->destroy_pipeline();

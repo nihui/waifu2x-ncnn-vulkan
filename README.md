@@ -1,8 +1,7 @@
 # waifu2x-ncnn-vulkan
 waifu2x converter ncnn version, runs fast on intel / amd / nvidia with vulkan
 
-# the original waifu2x project
-https://github.com/nagadomi/waifu2x
+waifu2x-ncnn-vulkan use ncnn project [https://github.com/Tencent/ncnn] as the universal nerual network inference framework
 
 # download windows exe for your intel/amd/nvidia GPU card
 https://github.com/nihui/waifu2x-ncnn-vulkan/releases
@@ -25,3 +24,10 @@ waifu2x.exe origin.jpg output.png 2 2
 ```
 ![waifu2x](https://raw.githubusercontent.com/nihui/waifu2x-ncnn-vulkan/master/2.png)
 
+# original waifu2x project
+https://github.com/nagadomi/waifu2x
+
+https://github.com/lltcggie/waifu2x-caffe
+
+# ncnn project
+https://github.com/Tencent/ncnn

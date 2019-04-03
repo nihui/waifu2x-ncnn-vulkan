@@ -4,10 +4,15 @@ waifu2x converter ncnn version, runs fast on intel / amd / nvidia with vulkan
 # the original waifu2x project
 https://github.com/nagadomi/waifu2x
 
+# download windows exe for your intel/amd/nvidia GPU card
+https://github.com/nihui/waifu2x-ncnn-vulkan/releases
+
 # Usage
 ```
 waifu2x.exe [input image] [output png] [noise=-1/0/1/2/3] [scale=1/2]
 ```
+* noise = noise level, large value means strong denoise effect, -1=no effect
+* scale = scale level, 1=no scale, 2=upscale 2x
 
 # Sample
 ## original image

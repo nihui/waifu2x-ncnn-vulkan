@@ -1,6 +1,8 @@
 // waifu2x implemented with ncnn library
 
 #include <stdio.h>
+#include <algorithm>
+#include <vector>
 
 // image decoder and encoder
 #define STB_IMAGE_IMPLEMENTATION
@@ -78,6 +80,9 @@ int main(int argc, char** argv)
         ncnn::Layer* denormalize = 0;
         ncnn::Layer* cast_float32_to_float16 = 0;
         ncnn::Layer* cast_float16_to_float32 = 0;
+        ncnn::Layer* crop_tile = 0;
+        ncnn::Layer* merge_tile_x = 0;
+        ncnn::Layer* merge_tile_y = 0;
 
         ncnn::Option opt = ncnn::get_default_option();
         opt.blob_vkallocator = vkdev->allocator();
@@ -164,6 +169,50 @@ int main(int argc, char** argv)
                     cast_float16_to_float32->create_pipeline();
                 }
             }
+
+            {
+                crop_tile = ncnn::create_layer(ncnn::LayerType::Crop);
+                crop_tile->vkdev = vkdev;
+
+                ncnn::ParamDict pd;
+                pd.set(0, -233);
+                pd.set(1, -233);
+                pd.set(2, -233);
+                pd.set(3, 0);
+                pd.set(4, 0);
+                pd.set(5, 0);
+                pd.use_vulkan_compute = 1;
+
+                crop_tile->load_param(pd);
+
+                crop_tile->create_pipeline();
+            }
+
+            {
+                merge_tile_x = ncnn::create_layer(ncnn::LayerType::Concat);
+                merge_tile_x->vkdev = vkdev;
+
+                ncnn::ParamDict pd;
+                pd.set(0, 2);
+                pd.use_vulkan_compute = 1;
+
+                merge_tile_x->load_param(pd);
+
+                merge_tile_x->create_pipeline();
+            }
+
+            {
+                merge_tile_y = ncnn::create_layer(ncnn::LayerType::Concat);
+                merge_tile_y->vkdev = vkdev;
+
+                ncnn::ParamDict pd;
+                pd.set(0, 1);
+                pd.use_vulkan_compute = 1;
+
+                merge_tile_y->load_param(pd);
+
+                merge_tile_y->create_pipeline();
+            }
         }
 
         // main routine
@@ -215,12 +264,68 @@ int main(int argc, char** argv)
                 in_gpu = in_gpu_normed;
             }
 
-            ncnn::Extractor ex = waifu2x.create_extractor();
-
-            ex.input("Input1", in_gpu);
-
             ncnn::VkMat out_gpu;
-            ex.extract("Eltwise4", out_gpu, cmd);
+
+            // each tile 400x400
+            {
+                const int TILE_SIZE_X = 400;
+                const int TILE_SIZE_Y = 400;
+
+                ncnn::VkMat crop_tile_params(6, (size_t)4u, 1, opt.blob_vkallocator, opt.staging_vkallocator);
+                crop_tile_params.prepare_staging_buffer();
+                int* crop_param = crop_tile_params.mapped();
+
+                int xtiles = (w + TILE_SIZE_X-1) / TILE_SIZE_X;
+                int ytiles = (h + TILE_SIZE_Y-1) / TILE_SIZE_Y;
+
+                std::vector<ncnn::VkMat> out_tile_y_gpus(ytiles);
+                for (int yi = 0; yi < ytiles; yi++)
+                {
+                    std::vector<ncnn::VkMat> out_tile_x_gpus(xtiles);
+                    for (int xi = 0; xi < xtiles; xi++)
+                    {
+                        // crop tile
+                        int tile_x0 = xi * TILE_SIZE_X;
+                        int tile_x1 = std::min((xi+1) * TILE_SIZE_X, w) + prepadding + prepadding;
+                        int tile_y0 = yi * TILE_SIZE_Y;
+                        int tile_y1 = std::min((yi+1) * TILE_SIZE_Y, h) + prepadding + prepadding;
+
+                        crop_param[0] = tile_x0;
+                        crop_param[1] = tile_y0;
+                        crop_param[2] = 0;
+                        crop_param[3] = tile_x1 - tile_x0;
+                        crop_param[4] = tile_y1 - tile_y0;
+                        crop_param[5] = 3;
+
+                        std::vector<ncnn::VkMat> crop_tile_inputs(2);
+                        crop_tile_inputs[0] = in_gpu;
+                        crop_tile_inputs[1] = crop_tile_params;
+
+                        std::vector<ncnn::VkMat> crop_tile_outputs(1);
+                        crop_tile->forward(crop_tile_inputs, crop_tile_outputs, cmd, opt);
+
+                        ncnn::VkMat in_tile_gpu = crop_tile_outputs[0];
+
+                        // waifu2x
+                        {
+                            ncnn::Extractor ex = waifu2x.create_extractor();
+                            ex.input("Input1", in_tile_gpu);
+
+                            ex.extract("Eltwise4", out_tile_x_gpus[ xi ], cmd);
+                        }
+                    }
+
+                    // merge tiles x
+                    std::vector<ncnn::VkMat> merge_tile_x_outputs(1);
+                    merge_tile_x->forward(out_tile_x_gpus, merge_tile_x_outputs, cmd, opt);
+                    out_tile_y_gpus[ yi ] = merge_tile_x_outputs[0];
+                }
+
+                // merge tiles y
+                std::vector<ncnn::VkMat> merge_tile_y_outputs(1);
+                merge_tile_y->forward(out_tile_y_gpus, merge_tile_y_outputs, cmd, opt);
+                out_gpu = merge_tile_y_outputs[0];
+            }
 
             // denormalize
             {
@@ -264,6 +369,15 @@ int main(int argc, char** argv)
 
         // cleanup preprocess and postprocess operator
         {
+            merge_tile_x->destroy_pipeline();
+            delete merge_tile_x;
+
+            merge_tile_y->destroy_pipeline();
+            delete merge_tile_y;
+
+            crop_tile->destroy_pipeline();
+            delete crop_tile;
+
             if (vkdev->info.support_fp16_storage)
             {
                 cast_float32_to_float16->destroy_pipeline();

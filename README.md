@@ -6,12 +6,22 @@ waifu2x-ncnn-vulkan use ncnn project [https://github.com/Tencent/ncnn] as the un
 # download windows exe for your intel/amd/nvidia GPU card
 https://github.com/nihui/waifu2x-ncnn-vulkan/releases
 
+This package includes all the binary and models required, it is portable, no cuda or caffe runtime needed :)
+
 # Usage
 ```
 waifu2x.exe [input image] [output png] [noise=-1/0/1/2/3] [scale=1/2]
 ```
 * noise = noise level, large value means strong denoise effect, -1=no effect
 * scale = scale level, 1=no scale, 2=upscale 2x
+
+If you encounter crash or error, try to upgrade your GPU driver
+
+intel https://downloadcenter.intel.com/product/80939/Graphics-Drivers
+
+amd https://www.amd.com/en/support
+
+nvidia https://www.nvidia.com/Download/index.aspx
 
 # Sample
 ## original image
@@ -29,5 +39,5 @@ https://github.com/nagadomi/waifu2x
 
 https://github.com/lltcggie/waifu2x-caffe
 
-# ncnn project
-https://github.com/Tencent/ncnn
+# ncnn project (>=20190406)
+https://github.com/Tencent/ncnn/tree/c5ab0c86e4d8ee70c375d1cea49bb82a580e418c

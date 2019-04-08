@@ -310,7 +310,7 @@ int main(int argc, char** argv)
                 prepadding_right += (w + 1) / 2 * 2 - w;
             }
             {
-                ncnn::VkMat pre_padding_params(4, (size_t)4u, 1, opt.blob_vkallocator, opt.staging_vkallocator);
+                ncnn::VkMat pre_padding_params(4, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);
                 pre_padding_params.prepare_staging_buffer();
                 int* padding_param = pre_padding_params.mapped();
 
@@ -335,7 +335,7 @@ int main(int argc, char** argv)
                 const int TILE_SIZE_X = 400;
                 const int TILE_SIZE_Y = 400;
 
-                ncnn::VkMat crop_tile_params(6, (size_t)4u, 1, opt.blob_vkallocator, opt.staging_vkallocator);
+                ncnn::VkMat crop_tile_params(6, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);
                 crop_tile_params.prepare_staging_buffer();
                 int* crop_param = crop_tile_params.mapped();
 

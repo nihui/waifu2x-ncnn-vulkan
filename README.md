@@ -50,8 +50,16 @@ Measure-Command { waifu2x-caffe-cui.exe -t 0 --gpu 0 -b 1 -c [block size] -p cud
 # sample
 ## original image
 ![origin](https://raw.githubusercontent.com/nihui/waifu2x-ncnn-vulkan/master/0.jpg)
-## upscale 2x with browser
+## upscale 2x with ImageMagick
+```
+convert origin.jpg -resize 200% output.png
+```
 ![browser](https://raw.githubusercontent.com/nihui/waifu2x-ncnn-vulkan/master/1.png)
+## upscale 2x with ImageMagick Lanczo4 filter
+```
+convert origin.jpg -filter Lanczos -resize 200% output.png
+```
+![browser](https://raw.githubusercontent.com/nihui/waifu2x-ncnn-vulkan/master/4.png)
 ## upscale 2x with waifu2x noise=2 scale=2
 ```
 waifu2x.exe origin.jpg output.png 2 2

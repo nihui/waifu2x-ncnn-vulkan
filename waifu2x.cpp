@@ -69,10 +69,14 @@ int main(int argc, char** argv)
 #if WIN32
     CoInitialize(0);
 #endif
- 
+
     ncnn::create_gpu_instance();
 
     ncnn::VulkanDevice* vkdev = new ncnn::VulkanDevice;
+
+    // HACK ncnn fp16a produce incorrect result, force off
+    // TODO provide a way to control storage and arothmetic precision in ncnn
+    ((ncnn::GpuInfo*)(&vkdev->info))->support_fp16_arithmetic = false;
 
     {
         ncnn::Net waifu2x;
@@ -141,7 +145,7 @@ int main(int argc, char** argv)
                 ncnn::ParamDict pd;
                 pd.set(0, 2);
                 pd.set(1, 1);
-                pd.set(2, 1/255.f);
+                pd.set(2, 1 / 255.f);
                 pd.use_vulkan_compute = 1;
 
                 normalize->load_param(pd);
@@ -339,8 +343,8 @@ int main(int argc, char** argv)
                 crop_tile_params.prepare_staging_buffer();
                 int* crop_param = crop_tile_params.mapped();
 
-                int xtiles = (w + TILE_SIZE_X-1) / TILE_SIZE_X;
-                int ytiles = (h + TILE_SIZE_Y-1) / TILE_SIZE_Y;
+                int xtiles = (w + TILE_SIZE_X - 1) / TILE_SIZE_X;
+                int ytiles = (h + TILE_SIZE_Y - 1) / TILE_SIZE_Y;
 
                 std::vector<ncnn::VkMat> out_tile_y_gpus(ytiles);
                 for (int yi = 0; yi < ytiles; yi++)
@@ -350,9 +354,9 @@ int main(int argc, char** argv)
                     {
                         // crop tile
                         int tile_x0 = xi * TILE_SIZE_X;
-                        int tile_x1 = std::min((xi+1) * TILE_SIZE_X, w) + prepadding + prepadding_right;
+                        int tile_x1 = std::min((xi + 1) * TILE_SIZE_X, w) + prepadding + prepadding_right;
                         int tile_y0 = yi * TILE_SIZE_Y;
-                        int tile_y1 = std::min((yi+1) * TILE_SIZE_Y, h) + prepadding + prepadding_bottom;
+                        int tile_y1 = std::min((yi + 1) * TILE_SIZE_Y, h) + prepadding + prepadding_bottom;
 
                         crop_param[0] = tile_x0;
                         crop_param[1] = tile_y0;
@@ -375,14 +379,14 @@ int main(int argc, char** argv)
                             ncnn::Extractor ex = waifu2x.create_extractor();
                             ex.input("Input1", in_tile_gpu);
 
-                            ex.extract("Eltwise4", out_tile_x_gpus[ xi ], cmd);
+                            ex.extract("Eltwise4", out_tile_x_gpus[xi], cmd);
                         }
                     }
 
                     // merge tiles x
                     std::vector<ncnn::VkMat> merge_tile_x_outputs(1);
                     merge_tile_x->forward(out_tile_x_gpus, merge_tile_x_outputs, cmd, opt);
-                    out_tile_y_gpus[ yi ] = merge_tile_x_outputs[0];
+                    out_tile_y_gpus[yi] = merge_tile_x_outputs[0];
                 }
 
                 // merge tiles y

@@ -34,7 +34,7 @@ Measure-Command { waifu2x.exe input.png output.png 2 2 }
 Measure-Command { waifu2x-caffe-cui.exe -t 0 --gpu 0 -b 1 -c [block size] -p cudnn --model_dir ./models/cunet -s 2 -n 2 -m noise_scale -o input.png -i output.png }
 ```
 
-||image size|target size|block size|total time(ms)|GPU memory(MB)|
+||image size|target size|block size|total time(s)|GPU memory(MB)|
 |---|---|---|---|---|---|
 |waifu2x-ncnn-vulkan|200x200|400x400|400|0.62|180|
 |waifu2x-caffe-cui|200x200|400x400|400/200/100|2.54/2.39/2.36|3017/936/843|

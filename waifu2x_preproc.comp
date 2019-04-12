@@ -1,0 +1,56 @@
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#define sfp float16_t
+#else
+#define sfp float
+#endif
+
+layout (local_size_x_id = 233) in;
+layout (local_size_y_id = 234) in;
+layout (local_size_z_id = 235) in;
+
+layout (binding = 0) readonly buffer bottom_blob { float bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int w;
+    int h;
+    int cstep;
+
+    int outw;
+    int outh;
+    int outcstep;
+
+    int pad_top;
+    int pad_left;
+
+    int crop_x;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= p.outw || gy >= p.outh || gz >= 3)
+        return;
+
+    int x = gx + p.crop_x - p.pad_left;
+    int y = gy - p.pad_top;
+
+    x = clamp(x, 0, p.w - 1);
+    y = clamp(y, 0, p.h - 1);
+
+    int v_offset = gz * p.cstep + y * p.w + x;
+
+    float v = bottom_blob_data[v_offset];
+
+    const float norm_val = 1 / 255.f;
+
+    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfp(v * norm_val);
+}

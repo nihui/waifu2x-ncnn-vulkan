@@ -1,0 +1,48 @@
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#define sfp float16_t
+#else
+#define sfp float
+#endif
+
+layout (local_size_x_id = 233) in;
+layout (local_size_y_id = 234) in;
+layout (local_size_z_id = 235) in;
+
+layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int w;
+    int h;
+    int cstep;
+
+    int outw;
+    int outh;
+    int outcstep;
+
+    int offset_x;
+    int gx_max;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= p.gx_max || gy >= p.outh || gz >= 3)
+        return;
+
+    float v = float(bottom_blob_data[gz * p.cstep + gy * p.w + gx]);
+
+    const float denorm_val = 255.f;
+
+    int v_offset = gz * p.outcstep + gy * p.outw + gx + p.offset_x;
+
+    top_blob_data[v_offset] = v * denorm_val;
+}

@@ -139,6 +139,8 @@ int main(int argc, char** argv)
                 fprintf(stderr, "decode image %s failed\n", imagepath);
                 return -1;
             }
+
+            ncnn::Mat outbgr(w * scale, h * scale, (size_t)3u, 3);
 #else // WIN32
             int w, h, c;
             unsigned char* rgbdata = stbi_load(imagepath, &w, &h, &c, 3);
@@ -147,9 +149,9 @@ int main(int argc, char** argv)
                 fprintf(stderr, "decode image %s failed\n", imagepath);
                 return -1;
             }
-#endif // WIN32
 
             ncnn::Mat outrgb(w * scale, h * scale, (size_t)3u, 3);
+#endif // WIN32
 
             // prepadding
             int prepadding_bottom = prepadding;

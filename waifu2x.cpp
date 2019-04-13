@@ -40,9 +40,9 @@ static const uint32_t waifu2x_postproc_fp16s_spv_data[] = {
 
 int main(int argc, char** argv)
 {
-    if (argc != 5)
+    if (argc != 5 && argc != 6)
     {
-        fprintf(stderr, "Usage: %s [image] [outputpng] [noise=-1/0/1/2/3] [scale=1/2]\n", argv[0]);
+        fprintf(stderr, "Usage: %s [image] [outputpng] [noise=-1/0/1/2/3] [scale=1/2] [tilesize=400]\n", argv[0]);
         return -1;
     }
 
@@ -50,12 +50,22 @@ int main(int argc, char** argv)
     const char* outputpngpath = argv[2];
     int noise = atoi(argv[3]);
     int scale = atoi(argv[4]);
+    int tilesize = argc == 6 ? atoi(argv[5]) : 400;
 
     if (noise < -1 || noise > 3 || scale < 1 || scale > 2)
     {
         fprintf(stderr, "invalid noise or scale argument\n");
         return -1;
     }
+
+    if (tilesize < 32)
+    {
+        fprintf(stderr, "invalid tilesize argument\n");
+        return -1;
+    }
+
+    const int TILE_SIZE_X = tilesize;
+    const int TILE_SIZE_Y = tilesize;
 
     int prepadding = 0;
     char parampath[256];
@@ -104,9 +114,6 @@ int main(int argc, char** argv)
         opt.blob_vkallocator = vkdev->allocator();
         opt.workspace_vkallocator = vkdev->allocator();
         opt.staging_vkallocator = vkdev->staging_allocator();
-
-        const int TILE_SIZE_X = 400;
-        const int TILE_SIZE_Y = 400;
 
         // initialize preprocess and postprocess pipeline
         ncnn::Pipeline* waifu2x_preproc;
@@ -183,6 +190,8 @@ int main(int argc, char** argv)
                 ncnn::Mat in = ncnn::Mat::from_pixels(rgbdata + in_tile_y0 * w * 3, ncnn::Mat::PIXEL_RGB, w, (in_tile_y1 - in_tile_y0));
 #endif
 
+                ncnn::VkCompute cmd(vkdev);
+
                 // upload
                 ncnn::VkMat in_gpu;
                 {
@@ -191,13 +200,14 @@ int main(int argc, char** argv)
                     in_gpu.prepare_staging_buffer();
                     in_gpu.upload(in);
 
-                    ncnn::VkCompute cmd(vkdev);
-
                     cmd.record_upload(in_gpu);
 
-                    cmd.submit();
-
-                    cmd.wait();
+                    if (xtiles > 1)
+                    {
+                        cmd.submit();
+                        cmd.wait();
+                        cmd.reset();
+                    }
                 }
 
                 int out_tile_y0 = std::max(yi * TILE_SIZE_Y, 0);
@@ -208,8 +218,6 @@ int main(int argc, char** argv)
 
                 for (int xi = 0; xi < xtiles; xi++)
                 {
-                    ncnn::VkCompute cmd(vkdev);
-
                     // preproc
                     ncnn::VkMat in_tile_gpu;
                     {
@@ -272,21 +280,20 @@ int main(int argc, char** argv)
                         cmd.record_pipeline(waifu2x_postproc, bindings, constants, dispatcher);
                     }
 
-
-                    cmd.submit();
-
-                    cmd.wait();
+                    if (xtiles > 1)
+                    {
+                        cmd.submit();
+                        cmd.wait();
+                        cmd.reset();
+                    }
                 }
 
                 // download
                 {
-                    ncnn::VkCompute cmd(vkdev);
-
                     out_gpu.prepare_staging_buffer();
                     cmd.record_download(out_gpu);
 
                     cmd.submit();
-
                     cmd.wait();
                 }
 

@@ -10,10 +10,11 @@ This package includes all the binary and models required, it is portable, no cud
 
 # usage
 ```
-waifu2x.exe [input image] [output png] [noise=-1/0/1/2/3] [scale=1/2]
+waifu2x.exe [input image] [output png] [noise=-1/0/1/2/3] [scale=1/2] [blocksize=400]
 ```
 * noise = noise level, large value means strong denoise effect, -1=no effect
 * scale = scale level, 1=no scale, 2=upscale 2x
+* blocksize = tile size, use smaller value to reduce GPU memory usage, default is 400
 
 If you encounter crash or error, try to upgrade your GPU driver
 
@@ -28,7 +29,7 @@ nvidia https://www.nvidia.com/Download/index.aspx
 Windows 10 1809, AMD R7-1700, Nvidia GTX-1070, Nvidia driver 419.67, CUDA 10.1.105, cudnn 10.1
 
 ```
-Measure-Command { waifu2x.exe input.png output.png 2 2 }
+Measure-Command { waifu2x.exe input.png output.png 2 2 [block size] }
 ```
 ```
 Measure-Command { waifu2x-caffe-cui.exe -t 0 --gpu 0 -b 1 -c [block size] -p cudnn --model_dir ./models/cunet -s 2 -n 2 -m noise_scale -o input.png -i output.png }
@@ -71,5 +72,5 @@ https://github.com/nagadomi/waifu2x
 
 https://github.com/lltcggie/waifu2x-caffe
 
-# ncnn project (>=20190406)
-https://github.com/Tencent/ncnn/tree/c5ab0c86e4d8ee70c375d1cea49bb82a580e418c
+# ncnn project (>=20190413)
+https://github.com/Tencent/ncnn/tree/c180e875026b6f6ffa0f6e3e489a5c1487439b7f

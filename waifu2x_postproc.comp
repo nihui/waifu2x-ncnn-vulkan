@@ -41,8 +41,9 @@ void main()
     float v = float(bottom_blob_data[gz * p.cstep + gy * p.w + gx]);
 
     const float denorm_val = 255.f;
+    const float clip_eps = 0.5f;
 
     int v_offset = gz * p.outcstep + gy * p.outw + gx + p.offset_x;
 
-    top_blob_data[v_offset] = v * denorm_val;
+    top_blob_data[v_offset] = v * denorm_val + clip_eps;
 }

@@ -31,11 +31,17 @@ static const uint32_t waifu2x_preproc_spv_data[] = {
 static const uint32_t waifu2x_preproc_fp16s_spv_data[] = {
     #include "waifu2x_preproc_fp16s.spv.hex.h"
 };
+static const uint32_t waifu2x_preproc_int8s_spv_data[] = {
+    #include "waifu2x_preproc_int8s.spv.hex.h"
+};
 static const uint32_t waifu2x_postproc_spv_data[] = {
     #include "waifu2x_postproc.spv.hex.h"
 };
 static const uint32_t waifu2x_postproc_fp16s_spv_data[] = {
     #include "waifu2x_postproc_fp16s.spv.hex.h"
+};
+static const uint32_t waifu2x_postproc_int8s_spv_data[] = {
+    #include "waifu2x_postproc_int8s.spv.hex.h"
 };
 
 int main(int argc, char** argv)
@@ -119,18 +125,27 @@ int main(int argc, char** argv)
         ncnn::Pipeline* waifu2x_preproc;
         ncnn::Pipeline* waifu2x_postproc;
         {
-            std::vector<ncnn::vk_specialization_type> specializations;
+            std::vector<ncnn::vk_specialization_type> specializations(1);
+#if WIN32
+            specializations[0].i = 1;
+#else
+            specializations[0].i = 0;
+#endif
 
             waifu2x_preproc = new ncnn::Pipeline(vkdev);
             waifu2x_preproc->set_optimal_local_size_xyz(32, 32, 3);
-            if (vkdev->info.support_fp16_storage)
+            if (vkdev->info.support_fp16_storage && vkdev->info.support_int8_storage)
+                waifu2x_preproc->create(waifu2x_preproc_int8s_spv_data, sizeof(waifu2x_preproc_int8s_spv_data), "waifu2x_preproc_int8s", specializations, 2, 9);
+            else if (vkdev->info.support_fp16_storage)
                 waifu2x_preproc->create(waifu2x_preproc_fp16s_spv_data, sizeof(waifu2x_preproc_fp16s_spv_data), "waifu2x_preproc_fp16s", specializations, 2, 9);
             else
                 waifu2x_preproc->create(waifu2x_preproc_spv_data, sizeof(waifu2x_preproc_spv_data), "waifu2x_preproc", specializations, 2, 9);
 
             waifu2x_postproc = new ncnn::Pipeline(vkdev);
             waifu2x_postproc->set_optimal_local_size_xyz(32, 32, 3);
-            if (vkdev->info.support_fp16_storage)
+            if (vkdev->info.support_fp16_storage && vkdev->info.support_int8_storage)
+                waifu2x_postproc->create(waifu2x_postproc_int8s_spv_data, sizeof(waifu2x_postproc_int8s_spv_data), "waifu2x_postproc_int8s", specializations, 2, 8);
+            else if (vkdev->info.support_fp16_storage)
                 waifu2x_postproc->create(waifu2x_postproc_fp16s_spv_data, sizeof(waifu2x_postproc_fp16s_spv_data), "waifu2x_postproc_fp16s", specializations, 2, 8);
             else
                 waifu2x_postproc->create(waifu2x_postproc_spv_data, sizeof(waifu2x_postproc_spv_data), "waifu2x_postproc", specializations, 2, 8);
@@ -184,11 +199,23 @@ int main(int argc, char** argv)
                 int in_tile_y0 = std::max(yi * TILE_SIZE_Y - prepadding, 0);
                 int in_tile_y1 = std::min((yi + 1) * TILE_SIZE_Y + prepadding_bottom, h);
 
+                ncnn::Mat in;
+                if (vkdev->info.support_fp16_storage && vkdev->info.support_int8_storage)
+                {
 #if WIN32
-                ncnn::Mat in = ncnn::Mat::from_pixels(bgrdata + in_tile_y0 * w * 3, ncnn::Mat::PIXEL_BGR2RGB, w, (in_tile_y1 - in_tile_y0));
+                    in = ncnn::Mat(w, (in_tile_y1 - in_tile_y0), bgrdata + in_tile_y0 * w * 3, (size_t)3u, 1);
 #else
-                ncnn::Mat in = ncnn::Mat::from_pixels(rgbdata + in_tile_y0 * w * 3, ncnn::Mat::PIXEL_RGB, w, (in_tile_y1 - in_tile_y0));
+                    in = ncnn::Mat(w, (in_tile_y1 - in_tile_y0), rgbdata + in_tile_y0 * w * 3, (size_t)3u, 1);
 #endif
+                }
+                else
+                {
+#if WIN32
+                    in = ncnn::Mat::from_pixels(bgrdata + in_tile_y0 * w * 3, ncnn::Mat::PIXEL_BGR2RGB, w, (in_tile_y1 - in_tile_y0));
+#else
+                    in = ncnn::Mat::from_pixels(rgbdata + in_tile_y0 * w * 3, ncnn::Mat::PIXEL_RGB, w, (in_tile_y1 - in_tile_y0));
+#endif
+                }
 
                 ncnn::VkCompute cmd(vkdev);
 
@@ -214,7 +241,14 @@ int main(int argc, char** argv)
                 int out_tile_y1 = std::min((yi + 1) * TILE_SIZE_Y, h);
 
                 ncnn::VkMat out_gpu;
-                out_gpu.create(w * scale, (out_tile_y1 - out_tile_y0) * scale, 3, (size_t)4u, 1, opt.blob_vkallocator, opt.staging_vkallocator);
+                if (vkdev->info.support_fp16_storage && vkdev->info.support_int8_storage)
+                {
+                    out_gpu.create(w * scale, (out_tile_y1 - out_tile_y0) * scale, (size_t)3u, 1, opt.blob_vkallocator, opt.staging_vkallocator);
+                }
+                else
+                {
+                    out_gpu.create(w * scale, (out_tile_y1 - out_tile_y0) * scale, 3, (size_t)4u, 1, opt.blob_vkallocator, opt.staging_vkallocator);
+                }
 
                 for (int xi = 0; xi < xtiles; xi++)
                 {
@@ -297,15 +331,28 @@ int main(int argc, char** argv)
                     cmd.wait();
                 }
 
-                ncnn::Mat out;
-                out.create_like(out_gpu, opt.blob_allocator);
-                out_gpu.download(out);
+                if (vkdev->info.support_fp16_storage && vkdev->info.support_int8_storage)
+                {
+#if WIN32
+                    ncnn::Mat out(out_gpu.w, out_gpu.h, (unsigned char*)outbgr.data + yi * scale * TILE_SIZE_Y * w * scale * 3, (size_t)3u, 1);
+#else
+                    ncnn::Mat out(out_gpu.w, out_gpu.h, (unsigned char*)outrgb.data + yi * scale * TILE_SIZE_Y * w * scale * 3, (size_t)3u, 1);
+#endif
+
+                    out_gpu.download(out);
+                }
+                else
+                {
+                    ncnn::Mat out;
+                    out.create_like(out_gpu, opt.blob_allocator);
+                    out_gpu.download(out);
 
 #if WIN32
-                out.to_pixels((unsigned char*)outbgr.data + yi * scale * TILE_SIZE_Y * w * scale * 3, ncnn::Mat::PIXEL_RGB2BGR);
+                    out.to_pixels((unsigned char*)outbgr.data + yi * scale * TILE_SIZE_Y * w * scale * 3, ncnn::Mat::PIXEL_RGB2BGR);
 #else
-                out.to_pixels((unsigned char*)outrgb.data + yi * scale * TILE_SIZE_Y * w * scale * 3, ncnn::Mat::PIXEL_RGB);
+                    out.to_pixels((unsigned char*)outrgb.data + yi * scale * TILE_SIZE_Y * w * scale * 3, ncnn::Mat::PIXEL_RGB);
 #endif
+                }
             }
 
 #if WIN32

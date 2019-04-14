@@ -8,11 +8,21 @@
 #define sfp float
 #endif
 
+#if NCNN_int8_storage
+#extension GL_EXT_shader_8bit_storage: require
+#endif
+
+layout (constant_id = 0) const int bgr = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_int8_storage
+layout (binding = 0) readonly buffer bottom_blob { uint8_t bottom_blob_data[]; };
+#else
 layout (binding = 0) readonly buffer bottom_blob { float bottom_blob_data[]; };
+#endif
 layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 
 layout (push_constant) uniform parameter
@@ -46,9 +56,20 @@ void main()
     x = clamp(x, 0, p.w - 1);
     y = clamp(y, 0, p.h - 1);
 
+#if NCNN_int8_storage
+    int v_offset = y * p.w + x;
+
+    float v;
+
+    if (bgr == 1)
+        v = float(bottom_blob_data[v_offset * 3 + 2 - gz]);
+    else
+        v = float(bottom_blob_data[v_offset * 3 + gz]);
+#else
     int v_offset = gz * p.cstep + y * p.w + x;
 
     float v = bottom_blob_data[v_offset];
+#endif
 
     const float norm_val = 1 / 255.f;
 

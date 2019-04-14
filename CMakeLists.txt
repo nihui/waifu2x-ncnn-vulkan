@@ -40,6 +40,21 @@ macro(compile_shader SHADER_SRC)
     )
     set_source_files_properties(${SHADER_fp16s_SPV_HEX_FILE} PROPERTIES GENERATED TRUE)
     list(APPEND SHADER_SPV_HEX_FILES ${SHADER_fp16s_SPV_HEX_FILE})
+
+    # int8 storage
+    set(SHADER_int8s_SRC_NAME_WE "${SHADER_SRC_NAME_WE}_int8s")
+
+    set(SHADER_int8s_SPV_HEX_FILE ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_int8s_SRC_NAME_WE}.spv.hex.h)
+    add_custom_command(
+        OUTPUT ${SHADER_int8s_SPV_HEX_FILE}
+        COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
+        ARGS -DNCNN_fp16_storage=1 -DNCNN_int8_storage=1 -V -s -e ${SHADER_int8s_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_int8s_SPV_HEX_FILE} ${SHADER_SRC_FULLPATH}
+        DEPENDS ${SHADER_SRC_FULLPATH}
+        COMMENT "Building SPIR-V module ${SHADER_int8s_SRC_NAME_WE}.spv"
+        VERBATIM
+    )
+    set_source_files_properties(${SHADER_int8s_SPV_HEX_FILE} PROPERTIES GENERATED TRUE)
+    list(APPEND SHADER_SPV_HEX_FILES ${SHADER_int8s_SPV_HEX_FILE})
 endmacro()
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})

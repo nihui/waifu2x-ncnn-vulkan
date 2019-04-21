@@ -44,8 +44,25 @@ static const uint32_t waifu2x_postproc_int8s_spv_data[] = {
     #include "waifu2x_postproc_int8s.spv.hex.h"
 };
 
+#if WIN32
+int wmain(int argc, wchar_t** argv)
+#else
 int main(int argc, char** argv)
+#endif
 {
+#if WIN32
+    if (argc != 5 && argc != 6)
+    {
+        fprintf(stderr, "Usage: %ls [image] [outputpng] [noise=-1/0/1/2/3] [scale=1/2] [tilesize=400]\n", argv[0]);
+        return -1;
+    }
+
+    const wchar_t* imagepath = argv[1];
+    const wchar_t* outputpngpath = argv[2];
+    int noise = _wtoi(argv[3]);
+    int scale = _wtoi(argv[4]);
+    int tilesize = argc == 6 ? _wtoi(argv[5]) : 400;
+#else
     if (argc != 5 && argc != 6)
     {
         fprintf(stderr, "Usage: %s [image] [outputpng] [noise=-1/0/1/2/3] [scale=1/2] [tilesize=400]\n", argv[0]);
@@ -57,6 +74,7 @@ int main(int argc, char** argv)
     int noise = atoi(argv[3]);
     int scale = atoi(argv[4]);
     int tilesize = argc == 6 ? atoi(argv[5]) : 400;
+#endif
 
     if (noise < -1 || noise > 3 || scale < 1 || scale > 2)
     {
@@ -158,7 +176,7 @@ int main(int argc, char** argv)
             unsigned char* bgrdata = wic_decode_image(imagepath, &w, &h, &c);
             if (!bgrdata)
             {
-                fprintf(stderr, "decode image %s failed\n", imagepath);
+                fprintf(stderr, "decode image %ls failed\n", imagepath);
                 return -1;
             }
 
@@ -359,16 +377,21 @@ int main(int argc, char** argv)
             free(bgrdata);
 
             int ret = wic_encode_image(outputpngpath, outbgr.w, outbgr.h, 3, outbgr.data);
+            if (ret == 0)
+            {
+                fprintf(stderr, "encode image %ls failed\n", outputpngpath);
+                return -1;
+            }
 #else
             stbi_image_free(rgbdata);
 
             int ret = stbi_write_png(outputpngpath, outrgb.w, outrgb.h, 3, outrgb.data, 0);
-#endif
             if (ret == 0)
             {
                 fprintf(stderr, "encode image %s failed\n", outputpngpath);
                 return -1;
             }
+#endif
         }
 
         // cleanup preprocess and postprocess pipeline

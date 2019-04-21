@@ -4,7 +4,7 @@
 // image decoder and encoder with WIC
 #include <wincodec.h>
 
-unsigned char* wic_decode_image(const char* filepath, int* w, int* h, int* c)
+unsigned char* wic_decode_image(const wchar_t* filepath, int* w, int* h, int* c)
 {
     IWICImagingFactory* factory = 0;
     IWICBitmapDecoder* decoder = 0;
@@ -20,15 +20,10 @@ unsigned char* wic_decode_image(const char* filepath, int* w, int* h, int* c)
     int stride = 0;
     unsigned char* bgrdata = 0;
 
-    int filepathsize = strlen(filepath);
-    std::wstring wfilepath;
-    wfilepath.resize(filepathsize);
-    std::mbstowcs(&wfilepath[0], filepath, filepathsize);
-
     if (CoCreateInstance(CLSID_WICImagingFactory, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&factory)))
         goto RETURN;
 
-    if (factory->CreateDecoderFromFilename(wfilepath.c_str(), 0, GENERIC_READ, WICDecodeMetadataCacheOnDemand, &decoder))
+    if (factory->CreateDecoderFromFilename(filepath, 0, GENERIC_READ, WICDecodeMetadataCacheOnDemand, &decoder))
         goto RETURN;
 
     if (decoder->GetFrame(0, &frame))
@@ -83,7 +78,7 @@ RETURN:
     return bgrdata;
 }
 
-int wic_encode_image(const char* filepath, int w, int h, int c, void* bgrdata)
+int wic_encode_image(const wchar_t* filepath, int w, int h, int c, void* bgrdata)
 {
     IWICImagingFactory* factory = 0;
     IWICStream* stream = 0;
@@ -94,18 +89,13 @@ int wic_encode_image(const char* filepath, int w, int h, int c, void* bgrdata)
     unsigned char* data = 0;
     int ret = 0;
 
-    int filepathsize = strlen(filepath);
-    std::wstring wfilepath;
-    wfilepath.resize(filepathsize);
-    std::mbstowcs(&wfilepath[0], filepath, filepathsize);
-
     if (CoCreateInstance(CLSID_WICImagingFactory, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&factory)))
         goto RETURN;
 
     if (factory->CreateStream(&stream))
         goto RETURN;
 
-    if (stream->InitializeFromFilename(wfilepath.c_str(), GENERIC_WRITE))
+    if (stream->InitializeFromFilename(filepath, GENERIC_WRITE))
         goto RETURN;
 
     if (factory->CreateEncoder(GUID_ContainerFormatPng, 0, &encoder))

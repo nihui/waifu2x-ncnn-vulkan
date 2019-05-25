@@ -249,8 +249,7 @@ int main(int argc, char** argv)
 
                     if (xtiles > 1)
                     {
-                        cmd.submit();
-                        cmd.wait();
+                        cmd.submit_and_wait();
                         cmd.reset();
                     }
                 }
@@ -334,8 +333,7 @@ int main(int argc, char** argv)
 
                     if (xtiles > 1)
                     {
-                        cmd.submit();
-                        cmd.wait();
+                        cmd.submit_and_wait();
                         cmd.reset();
                     }
                 }
@@ -345,8 +343,7 @@ int main(int argc, char** argv)
                     out_gpu.prepare_staging_buffer();
                     cmd.record_download(out_gpu);
 
-                    cmd.submit();
-                    cmd.wait();
+                    cmd.submit_and_wait();
                 }
 
                 if (vkdev->info.support_fp16_storage && vkdev->info.support_int8_storage)

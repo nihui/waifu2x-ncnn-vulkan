@@ -119,25 +119,27 @@ int main(int argc, char** argv)
 
     ncnn::create_gpu_instance();
 
-    ncnn::VulkanDevice* vkdev = new ncnn::VulkanDevice;
-
-    // HACK ncnn fp16a produce incorrect result, force off
-    // TODO provide a way to control storage and arothmetic precision in ncnn
-    ((ncnn::GpuInfo*)(&vkdev->info))->support_fp16_arithmetic = false;
+    ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
     {
         ncnn::Net waifu2x;
 
-        waifu2x.use_vulkan_compute = true;
+        ncnn::Option opt;
+        opt.use_vulkan_compute = true;
+        opt.blob_vkallocator = vkdev->allocator();
+        opt.workspace_vkallocator = vkdev->allocator();
+        opt.staging_vkallocator = vkdev->staging_allocator();
+        opt.use_fp16_packed = true;
+        opt.use_fp16_storage = true;
+        opt.use_fp16_arithmetic = false;
+        opt.use_int8_storage = true;
+        opt.use_int8_arithmetic = false;
+
+        waifu2x.opt = opt;
         waifu2x.set_vulkan_device(vkdev);
 
         waifu2x.load_param(parampath);
         waifu2x.load_model(modelpath);
-
-        ncnn::Option opt = ncnn::get_default_option();
-        opt.blob_vkallocator = vkdev->allocator();
-        opt.workspace_vkallocator = vkdev->allocator();
-        opt.staging_vkallocator = vkdev->staging_allocator();
 
         // initialize preprocess and postprocess pipeline
         ncnn::Pipeline* waifu2x_preproc;
@@ -211,7 +213,7 @@ int main(int argc, char** argv)
             int xtiles = (w + TILE_SIZE_X - 1) / TILE_SIZE_X;
             int ytiles = (h + TILE_SIZE_Y - 1) / TILE_SIZE_Y;
 
-            // TODO #pragma omp parallel for
+            //#pragma omp parallel for num_threads(2)
             for (int yi = 0; yi < ytiles; yi++)
             {
                 int in_tile_y0 = std::max(yi * TILE_SIZE_Y - prepadding, 0);
@@ -397,8 +399,6 @@ int main(int argc, char** argv)
             delete waifu2x_postproc;
         }
     }
-
-    delete vkdev;
 
     ncnn::destroy_gpu_instance();
 

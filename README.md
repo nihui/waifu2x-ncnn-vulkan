@@ -37,15 +37,15 @@ Measure-Command { waifu2x-caffe-cui.exe -t 0 --gpu 0 -b 1 -c [block size] -p cud
 
 ||image size|target size|block size|total time(s)|GPU memory(MB)|
 |---|---|---|---|---|---|
-|waifu2x-ncnn-vulkan|200x200|400x400|400/200/100|0.59/0.59/0.59|332/332/81|
+|waifu2x-ncnn-vulkan|200x200|400x400|400/200/100|0.86/0.86/0.82|638/638/197|
 |waifu2x-caffe-cui|200x200|400x400|400/200/100|2.54/2.39/2.36|3017/936/843|
-|waifu2x-ncnn-vulkan|400x400|800x800|400/200/100|0.87/0.81/0.86|1204/332/81|
+|waifu2x-ncnn-vulkan|400x400|800x800|400/200/100|1.17/1.04/1.02|2430/638/197|
 |waifu2x-caffe-cui|400x400|800x800|400/200/100|2.91/2.43/2.7|3202/1389/1178|
-|waifu2x-ncnn-vulkan|1000x1000|2000x2000|400/200/100|2.38/2.68/2.66|1227/332/97|
+|waifu2x-ncnn-vulkan|1000x1000|2000x2000|400/200/100|2.35/2.26/2.46|2430/638/197|
 |waifu2x-caffe-cui|1000x1000|2000x2000|400/200/100|4.04/3.79/4.35|3258/1582/1175|
-|waifu2x-ncnn-vulkan|2000x2000|4000x4000|400/200/100|7.66/8.06/9.00|1227/348/97|
+|waifu2x-ncnn-vulkan|2000x2000|4000x4000|400/200/100|6.46/6.59/7.49|2430/686/213|
 |waifu2x-caffe-cui|2000x2000|4000x4000|400/200/100|7.01/7.54/10.11|3258/1499/1200|
-|waifu2x-ncnn-vulkan|4000x4000|8000x8000|400/200/100|29.33/30.55/34.37|1245/348/97|
+|waifu2x-ncnn-vulkan|4000x4000|8000x8000|400/200/100|22.78/23.78/27.61|2448/654/213|
 |waifu2x-caffe-cui|4000x4000|8000x8000|400/200/100|18.45/21.85/31.82|3325/1652/1236|
 
 # sample
@@ -72,5 +72,5 @@ https://github.com/nagadomi/waifu2x
 
 https://github.com/lltcggie/waifu2x-caffe
 
-# ncnn project (>=20190512)
-https://github.com/Tencent/ncnn/tree/07260527fc62af13d8f2f117fa6e95fb1837eb3d
+# ncnn project (>=20190611)
+https://github.com/Tencent/ncnn/tree/20190611

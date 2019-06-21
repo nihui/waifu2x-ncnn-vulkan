@@ -71,8 +71,8 @@ compile_shader(waifu2x_postproc.comp)
 
 add_custom_target(generate-spirv DEPENDS ${SHADER_SPV_HEX_FILES})
 
-add_executable(waifu2x waifu2x.cpp)
+add_executable(waifu2x-ncnn-vulkan waifu2x.cpp)
 
-add_dependencies(waifu2x generate-spirv)
+add_dependencies(waifu2x-ncnn-vulkan generate-spirv)
 
-target_link_libraries(waifu2x ncnn ${Vulkan_LIBRARY} ${OpenMP_CXX_LIBRARIES})
+target_link_libraries(waifu2x-ncnn-vulkan ncnn ${Vulkan_LIBRARY} ${OpenMP_CXX_LIBRARIES})

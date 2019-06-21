@@ -1,7 +1,7 @@
 # waifu2x-ncnn-vulkan
 waifu2x converter ncnn version, runs fast on intel / amd / nvidia with vulkan
 
-waifu2x-ncnn-vulkan use ncnn project [https://github.com/Tencent/ncnn] as the universal nerual network inference framework
+waifu2x-ncnn-vulkan uses [ncnn project](https://github.com/Tencent/ncnn) as the universal neural network inference framework
 
 # download windows exe for your intel/amd/nvidia GPU card
 https://github.com/nihui/waifu2x-ncnn-vulkan/releases
@@ -10,26 +10,23 @@ This package includes all the binary and models required, it is portable, no cud
 
 # usage
 ```
-waifu2x.exe [input image] [output png] [noise=-1/0/1/2/3] [scale=1/2] [blocksize=400]
+waifu2x-ncnn-vulkan.exe [input image] [output png] [noise=-1/0/1/2/3] [scale=1/2] [blocksize=400]
 ```
 * noise = noise level, large value means strong denoise effect, -1=no effect
 * scale = scale level, 1=no scale, 2=upscale 2x
 * blocksize = tile size, use smaller value to reduce GPU memory usage, default is 400
 
-If you encounter crash or error, try to upgrade your GPU driver
-
-intel https://downloadcenter.intel.com/product/80939/Graphics-Drivers
-
-amd https://www.amd.com/en/support
-
-nvidia https://www.nvidia.com/Download/index.aspx
+If you encounter crash or error, try to upgrade your GPU driver:
+  - Intel: https://downloadcenter.intel.com/product/80939/Graphics-Drivers
+  - AMD: https://www.amd.com/en/support
+  - NVIDIA: https://www.nvidia.com/Download/index.aspx
 
 # speed compared with waifu2x-caffe-cui
 
 Windows 10 1809, AMD R7-1700, Nvidia GTX-1070, Nvidia driver 419.67, CUDA 10.1.105, cudnn 10.1
 
 ```
-Measure-Command { waifu2x.exe input.png output.png 2 2 [block size] }
+Measure-Command { waifu2x-ncnn-vulkan.exe input.png output.png 2 2 [block size] }
 ```
 ```
 Measure-Command { waifu2x-caffe-cui.exe -t 0 --gpu 0 -b 1 -c [block size] -p cudnn --model_dir ./models/cunet -s 2 -n 2 -m noise_scale -o input.png -i output.png }
@@ -63,7 +60,7 @@ convert origin.jpg -filter Lanczos -resize 200% output.png
 ![browser](https://raw.githubusercontent.com/nihui/waifu2x-ncnn-vulkan/master/4.png)
 ## upscale 2x with waifu2x noise=2 scale=2
 ```
-waifu2x.exe origin.jpg output.png 2 2
+waifu2x-ncnn-vulkan.exe origin.jpg output.png 2 2
 ```
 ![waifu2x](https://raw.githubusercontent.com/nihui/waifu2x-ncnn-vulkan/master/2.png)
 

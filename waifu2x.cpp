@@ -26,7 +26,7 @@ static wchar_t* optarg = NULL;
 static int optind = 1;
 static wchar_t getopt(int argc, wchar_t* const argv[], const wchar_t* optstring)
 {
-    if (optind >= argc || argv[optind][0] != '-')
+    if (optind >= argc || argv[optind][0] != L'-')
         return -1;
 
     wchar_t opt = argv[optind][1];
@@ -36,7 +36,7 @@ static wchar_t getopt(int argc, wchar_t* const argv[], const wchar_t* optstring)
 
     optarg = NULL;
 
-    if (p[1] == ':')
+    if (p[1] == L':')
     {
         optind++;
         if (optind >= argc)
@@ -102,11 +102,11 @@ int main(int argc, char** argv)
     int noise = 0;
     int scale = 2;
     int tilesize = 400;
-    const wchar_t* model = "models-cunet";
+    const wchar_t* model = L"models-cunet";
     int gpuid = 0;
 
     wchar_t opt;
-    while ((opt = getopt(argc, argv, L"i:o:n:s:t:m:g:h")) != -1)
+    while ((opt = getopt(argc, argv, L"i:o:n:s:t:m:g:h")) != (wchar_t)-1)
     {
         switch (opt)
         {
@@ -117,19 +117,19 @@ int main(int argc, char** argv)
             outputpngpath = optarg;
             break;
         case L'n':
-            noise = atoi(optarg);
+            noise = _wtoi(optarg);
             break;
         case L's':
-            scale = atoi(optarg);
+            scale = _wtoi(optarg);
             break;
         case L't':
-            tilesize = atoi(optarg);
+            tilesize = _wtoi(optarg);
             break;
         case L'm':
             model = optarg;
             break;
         case L'g':
-            gpuid = atoi(optarg);
+            gpuid = _wtoi(optarg);
             break;
         case L'h':
         default:
@@ -220,18 +220,18 @@ int main(int argc, char** argv)
     wchar_t modelpath[256];
     if (noise == -1)
     {
-        swprintf(parampath, 256, "%s/scale2.0x_model.param", model);
-        swprintf(modelpath, 256, "%s/scale2.0x_model.bin", model);
+        swprintf(parampath, 256, L"%s/scale2.0x_model.param", model);
+        swprintf(modelpath, 256, L"%s/scale2.0x_model.bin", model);
     }
     else if (scale == 1)
     {
-        swprintf(parampath, 256, "%s/noise%d_model.param", model, noise);
-        swprintf(modelpath, 256, "%s/noise%d_model.bin", model, noise);
+        swprintf(parampath, 256, L"%s/noise%d_model.param", model, noise);
+        swprintf(modelpath, 256, L"%s/noise%d_model.bin", model, noise);
     }
     else if (scale == 2)
     {
-        swprintf(parampath, 256, "%s/noise%d_scale2.0x_model.param", model, noise);
-        swprintf(modelpath, 256, "%s/noise%d_scale2.0x_model.bin", model, noise);
+        swprintf(parampath, 256, L"%s/noise%d_scale2.0x_model.param", model, noise);
+        swprintf(modelpath, 256, L"%s/noise%d_scale2.0x_model.bin", model, noise);
     }
 #else
     char parampath[256];

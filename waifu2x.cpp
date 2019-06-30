@@ -20,6 +20,39 @@
 #include "stb_image_write.h"
 #endif // WIN32
 
+#if WIN32
+#include <wchar.h>
+static wchar_t* optarg = NULL;
+static int optind = 1;
+static wchar_t getopt(int argc, wchar_t* const argv[], const wchar_t* optstring)
+{
+    if (optind >= argc || argv[optind][0] != '-')
+        return -1;
+
+    wchar_t opt = argv[optind][1];
+    const wchar_t* p = wcschr(optstring, opt);
+    if (p == NULL)
+        return L'?';
+
+    optarg = NULL;
+
+    if (p[1] == ':')
+    {
+        optind++;
+        if (optind >= argc)
+            return L'?';
+
+        optarg = argv[optind];
+    }
+
+    optind++;
+
+    return opt;
+}
+#else // WIN32
+#include <unistd.h> // getopt()
+#endif // WIN32
+
 // ncnn
 #include "layer_type.h"
 #include "net.h"
@@ -44,6 +77,19 @@ static const uint32_t waifu2x_postproc_int8s_spv_data[] = {
     #include "waifu2x_postproc_int8s.spv.hex.h"
 };
 
+static void print_usage()
+{
+    fprintf(stderr, "Usage: waifu2x-ncnn-vulkan -i infile -o outfile [options]...\n\n");
+    fprintf(stderr, "  -h               show this help\n");
+    fprintf(stderr, "  -i input-image   input image path (jpg/png)\n");
+    fprintf(stderr, "  -o output-image  output image path (png)\n");
+    fprintf(stderr, "  -n noise-level   denoise level (-1/0/1/2/3, default=0)\n");
+    fprintf(stderr, "  -s scale         upscale ratio (1/2, default=2)\n");
+    fprintf(stderr, "  -t tile-size     tile size (>=32, default=400)\n");
+    fprintf(stderr, "  -m model-path    waifu2x model path (default=models-cunet)\n");
+    fprintf(stderr, "  -g gpu-id        gpu device to use (default=0)\n");
+}
+
 #if WIN32
 int wmain(int argc, wchar_t** argv)
 #else
@@ -51,30 +97,94 @@ int main(int argc, char** argv)
 #endif
 {
 #if WIN32
-    if (argc != 5 && argc != 6)
+    const wchar_t* imagepath = 0;
+    const wchar_t* outputpngpath = 0;
+    int noise = 0;
+    int scale = 2;
+    int tilesize = 400;
+    const wchar_t* model = "models-cunet";
+    int gpuid = 0;
+
+    wchar_t opt;
+    while ((opt = getopt(argc, argv, L"i:o:n:s:t:m:g:h")) != -1)
     {
-        fprintf(stderr, "Usage: %ls [image] [outputpng] [noise=-1/0/1/2/3] [scale=1/2] [tilesize=400]\n", argv[0]);
+        switch (opt)
+        {
+        case L'i':
+            imagepath = optarg;
+            break;
+        case L'o':
+            outputpngpath = optarg;
+            break;
+        case L'n':
+            noise = atoi(optarg);
+            break;
+        case L's':
+            scale = atoi(optarg);
+            break;
+        case L't':
+            tilesize = atoi(optarg);
+            break;
+        case L'm':
+            model = optarg;
+            break;
+        case L'g':
+            gpuid = atoi(optarg);
+            break;
+        case L'h':
+        default:
+            print_usage();
+            return -1;
+        }
+    }
+#else // WIN32
+    const char* imagepath = 0;
+    const char* outputpngpath = 0;
+    int noise = 0;
+    int scale = 2;
+    int tilesize = 400;
+    const char* model = "models-cunet";
+    int gpuid = 0;
+
+    int opt;
+    while ((opt = getopt(argc, argv, "i:o:n:s:t:m:g:h")) != -1)
+    {
+        switch (opt)
+        {
+        case 'i':
+            imagepath = optarg;
+            break;
+        case 'o':
+            outputpngpath = optarg;
+            break;
+        case 'n':
+            noise = atoi(optarg);
+            break;
+        case 's':
+            scale = atoi(optarg);
+            break;
+        case 't':
+            tilesize = atoi(optarg);
+            break;
+        case 'm':
+            model = optarg;
+            break;
+        case 'g':
+            gpuid = atoi(optarg);
+            break;
+        case 'h':
+        default:
+            print_usage();
+            return -1;
+        }
+    }
+#endif // WIN32
+
+    if (!imagepath || !outputpngpath)
+    {
+        print_usage();
         return -1;
     }
-
-    const wchar_t* imagepath = argv[1];
-    const wchar_t* outputpngpath = argv[2];
-    int noise = _wtoi(argv[3]);
-    int scale = _wtoi(argv[4]);
-    int tilesize = argc == 6 ? _wtoi(argv[5]) : 400;
-#else
-    if (argc != 5 && argc != 6)
-    {
-        fprintf(stderr, "Usage: %s [image] [outputpng] [noise=-1/0/1/2/3] [scale=1/2] [tilesize=400]\n", argv[0]);
-        return -1;
-    }
-
-    const char* imagepath = argv[1];
-    const char* outputpngpath = argv[2];
-    int noise = atoi(argv[3]);
-    int scale = atoi(argv[4]);
-    int tilesize = argc == 6 ? atoi(argv[5]) : 400;
-#endif
 
     if (noise < -1 || noise > 3 || scale < 1 || scale > 2)
     {
@@ -92,26 +202,56 @@ int main(int argc, char** argv)
     const int TILE_SIZE_Y = tilesize;
 
     int prepadding = 0;
-    char parampath[256];
-    char modelpath[256];
     if (noise == -1)
     {
         prepadding = 18;
-        sprintf(parampath, "models-cunet/scale2.0x_model.param");
-        sprintf(modelpath, "models-cunet/scale2.0x_model.bin");
     }
     else if (scale == 1)
     {
         prepadding = 28;
-        sprintf(parampath, "models-cunet/noise%d_model.param", noise);
-        sprintf(modelpath, "models-cunet/noise%d_model.bin", noise);
     }
     else if (scale == 2)
     {
         prepadding = 18;
-        sprintf(parampath, "models-cunet/noise%d_scale2.0x_model.param", noise);
-        sprintf(modelpath, "models-cunet/noise%d_scale2.0x_model.bin", noise);
     }
+
+#if WIN32
+    wchar_t parampath[256];
+    wchar_t modelpath[256];
+    if (noise == -1)
+    {
+        swprintf(parampath, 256, "%s/scale2.0x_model.param", model);
+        swprintf(modelpath, 256, "%s/scale2.0x_model.bin", model);
+    }
+    else if (scale == 1)
+    {
+        swprintf(parampath, 256, "%s/noise%d_model.param", model, noise);
+        swprintf(modelpath, 256, "%s/noise%d_model.bin", model, noise);
+    }
+    else if (scale == 2)
+    {
+        swprintf(parampath, 256, "%s/noise%d_scale2.0x_model.param", model, noise);
+        swprintf(modelpath, 256, "%s/noise%d_scale2.0x_model.bin", model, noise);
+    }
+#else
+    char parampath[256];
+    char modelpath[256];
+    if (noise == -1)
+    {
+        sprintf(parampath, "%s/scale2.0x_model.param", model);
+        sprintf(modelpath, "%s/scale2.0x_model.bin", model);
+    }
+    else if (scale == 1)
+    {
+        sprintf(parampath, "%s/noise%d_model.param", model, noise);
+        sprintf(modelpath, "%s/noise%d_model.bin", model, noise);
+    }
+    else if (scale == 2)
+    {
+        sprintf(parampath, "%s/noise%d_scale2.0x_model.param", model, noise);
+        sprintf(modelpath, "%s/noise%d_scale2.0x_model.bin", model, noise);
+    }
+#endif
 
 #if WIN32
     CoInitialize(0);
@@ -119,7 +259,16 @@ int main(int argc, char** argv)
 
     ncnn::create_gpu_instance();
 
-    ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    int gpu_count = ncnn::get_gpu_count();
+    if (gpuid < 0 || gpuid >= gpu_count)
+    {
+        fprintf(stderr, "invalid gpu device\n");
+
+        ncnn::destroy_gpu_instance();
+        return -1;
+    }
+
+    ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(gpuid);
 
     ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
     ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
@@ -141,8 +290,33 @@ int main(int argc, char** argv)
         waifu2x.opt = opt;
         waifu2x.set_vulkan_device(vkdev);
 
+#if WIN32
+        {
+            FILE* fp = _wfopen(parampath, L"rb");
+            if (!fp)
+            {
+                fwprintf(stderr, L"_wfopen %s failed\n", parampath);
+            }
+
+            waifu2x.load_param(fp);
+
+            fclose(fp);
+        }
+        {
+            FILE* fp = _wfopen(modelpath, L"rb");
+            if (!fp)
+            {
+                fwprintf(stderr, L"_wfopen %s failed\n", modelpath);
+            }
+
+            waifu2x.load_model(fp);
+
+            fclose(fp);
+        }
+#else
         waifu2x.load_param(parampath);
         waifu2x.load_model(modelpath);
+#endif
 
         // initialize preprocess and postprocess pipeline
         ncnn::Pipeline* waifu2x_preproc;

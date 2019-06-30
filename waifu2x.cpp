@@ -121,14 +121,17 @@ int main(int argc, char** argv)
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
+    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
+    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
+
     {
         ncnn::Net waifu2x;
 
         ncnn::Option opt;
         opt.use_vulkan_compute = true;
-        opt.blob_vkallocator = vkdev->allocator();
-        opt.workspace_vkallocator = vkdev->allocator();
-        opt.staging_vkallocator = vkdev->staging_allocator();
+        opt.blob_vkallocator = blob_vkallocator;
+        opt.workspace_vkallocator = blob_vkallocator;
+        opt.staging_vkallocator = staging_vkallocator;
         opt.use_fp16_packed = true;
         opt.use_fp16_storage = true;
         opt.use_fp16_arithmetic = false;
@@ -399,6 +402,9 @@ int main(int argc, char** argv)
             delete waifu2x_postproc;
         }
     }
+
+    vkdev->reclaim_blob_allocator(blob_vkallocator);
+    vkdev->reclaim_staging_allocator(staging_vkallocator);
 
     ncnn::destroy_gpu_instance();
 

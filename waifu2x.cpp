@@ -202,17 +202,38 @@ int main(int argc, char** argv)
     const int TILE_SIZE_Y = tilesize;
 
     int prepadding = 0;
-    if (noise == -1)
+
+#if WIN32
+    if (wcsstr(model, L"models-cunet"))
+#else
+    if (strstr(model, "models-cunet"))
+#endif
     {
-        prepadding = 18;
+        if (noise == -1)
+        {
+            prepadding = 18;
+        }
+        else if (scale == 1)
+        {
+            prepadding = 28;
+        }
+        else if (scale == 2)
+        {
+            prepadding = 18;
+        }
     }
-    else if (scale == 1)
+#if WIN32
+    else if (wcsstr(model, L"models-upconv_7_anime_style_art_rgb"))
+#else
+    else if (strstr(model, "models-upconv_7_anime_style_art_rgb"))
+#endif
     {
-        prepadding = 28;
+        prepadding = 7;
     }
-    else if (scale == 2)
+    else
     {
-        prepadding = 18;
+        fprintf(stderr, "unknown model dir type\n");
+        return -1;
     }
 
 #if WIN32

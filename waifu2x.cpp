@@ -352,18 +352,18 @@ int main(int argc, char** argv)
 
             waifu2x_preproc = new ncnn::Pipeline(vkdev);
             waifu2x_preproc->set_optimal_local_size_xyz(32, 32, 3);
-            if (vkdev->info.support_fp16_storage && vkdev->info.support_int8_storage)
+            if (waifu2x.opt.use_fp16_storage && waifu2x.opt.use_int8_storage)
                 waifu2x_preproc->create(waifu2x_preproc_int8s_spv_data, sizeof(waifu2x_preproc_int8s_spv_data), "waifu2x_preproc_int8s", specializations, 2, 9);
-            else if (vkdev->info.support_fp16_storage)
+            else if (waifu2x.opt.use_fp16_storage)
                 waifu2x_preproc->create(waifu2x_preproc_fp16s_spv_data, sizeof(waifu2x_preproc_fp16s_spv_data), "waifu2x_preproc_fp16s", specializations, 2, 9);
             else
                 waifu2x_preproc->create(waifu2x_preproc_spv_data, sizeof(waifu2x_preproc_spv_data), "waifu2x_preproc", specializations, 2, 9);
 
             waifu2x_postproc = new ncnn::Pipeline(vkdev);
             waifu2x_postproc->set_optimal_local_size_xyz(32, 32, 3);
-            if (vkdev->info.support_fp16_storage && vkdev->info.support_int8_storage)
+            if (waifu2x.opt.use_fp16_storage && waifu2x.opt.use_int8_storage)
                 waifu2x_postproc->create(waifu2x_postproc_int8s_spv_data, sizeof(waifu2x_postproc_int8s_spv_data), "waifu2x_postproc_int8s", specializations, 2, 8);
-            else if (vkdev->info.support_fp16_storage)
+            else if (waifu2x.opt.use_fp16_storage)
                 waifu2x_postproc->create(waifu2x_postproc_fp16s_spv_data, sizeof(waifu2x_postproc_fp16s_spv_data), "waifu2x_postproc_fp16s", specializations, 2, 8);
             else
                 waifu2x_postproc->create(waifu2x_postproc_spv_data, sizeof(waifu2x_postproc_spv_data), "waifu2x_postproc", specializations, 2, 8);
@@ -418,7 +418,7 @@ int main(int argc, char** argv)
                 int in_tile_y1 = std::min((yi + 1) * TILE_SIZE_Y + prepadding_bottom, h);
 
                 ncnn::Mat in;
-                if (vkdev->info.support_fp16_storage && vkdev->info.support_int8_storage)
+                if (waifu2x.opt.use_fp16_storage && waifu2x.opt.use_int8_storage)
                 {
 #if WIN32
                     in = ncnn::Mat(w, (in_tile_y1 - in_tile_y0), bgrdata + in_tile_y0 * w * 3, (size_t)3u, 1);
@@ -458,7 +458,7 @@ int main(int argc, char** argv)
                 int out_tile_y1 = std::min((yi + 1) * TILE_SIZE_Y, h);
 
                 ncnn::VkMat out_gpu;
-                if (vkdev->info.support_fp16_storage && vkdev->info.support_int8_storage)
+                if (waifu2x.opt.use_fp16_storage && waifu2x.opt.use_int8_storage)
                 {
                     out_gpu.create(w * scale, (out_tile_y1 - out_tile_y0) * scale, (size_t)3u, 1, opt.blob_vkallocator, opt.staging_vkallocator);
                 }
@@ -546,7 +546,7 @@ int main(int argc, char** argv)
                     cmd.submit_and_wait();
                 }
 
-                if (vkdev->info.support_fp16_storage && vkdev->info.support_int8_storage)
+                if (waifu2x.opt.use_fp16_storage && waifu2x.opt.use_int8_storage)
                 {
 #if WIN32
                     ncnn::Mat out(out_gpu.w, out_gpu.h, (unsigned char*)outbgr.data + yi * scale * TILE_SIZE_Y * w * scale * 3, (size_t)3u, 1);

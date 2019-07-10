@@ -41,6 +41,7 @@ macro(compile_shader SHADER_SRC)
     set_source_files_properties(${SHADER_fp16s_SPV_HEX_FILE} PROPERTIES GENERATED TRUE)
     list(APPEND SHADER_SPV_HEX_FILES ${SHADER_fp16s_SPV_HEX_FILE})
 
+    if(NOT NO_INT8_SUPPORT)
     # int8 storage
     set(SHADER_int8s_SRC_NAME_WE "${SHADER_SRC_NAME_WE}_int8s")
 
@@ -55,6 +56,7 @@ macro(compile_shader SHADER_SRC)
     )
     set_source_files_properties(${SHADER_int8s_SPV_HEX_FILE} PROPERTIES GENERATED TRUE)
     list(APPEND SHADER_SPV_HEX_FILES ${SHADER_int8s_SPV_HEX_FILE})
+    endif(NOT NO_INT8_SUPPORT)
 endmacro()
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
@@ -70,6 +72,23 @@ compile_shader(waifu2x_preproc.comp)
 compile_shader(waifu2x_postproc.comp)
 
 add_custom_target(generate-spirv DEPENDS ${SHADER_SPV_HEX_FILES})
+
+option(NO_INT8_SUPPORT "no int8 support" OFF)
+set(MSVC_STATIC "build with /mt" OFF)
+
+if(NO_INT8_SUPPORT)
+    add_compile_definitions(NO_INT8_SUPPORT)
+endif(NO_INT8_SUPPORT)
+
+if (MSVC AND MSVC_STATIC)
+    foreach(flag_var
+        CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
+        CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+        if(${flag_var} MATCHES "/MD")
+            string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
+        endif(${flag_var} MATCHES "/MD")
+    endforeach(flag_var)
+endif (MSVC AND MSVC_STATIC)
 
 add_executable(waifu2x-ncnn-vulkan waifu2x.cpp)
 

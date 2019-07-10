@@ -59,6 +59,10 @@ endmacro()
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+
 # change these path to yours
 include_directories("/home/nihui/osd/ncnn/build/install/include")
 link_directories("/home/nihui/osd/ncnn/build/install/lib")
@@ -71,7 +75,7 @@ compile_shader(waifu2x_postproc.comp)
 
 add_custom_target(generate-spirv DEPENDS ${SHADER_SPV_HEX_FILES})
 
-add_executable(waifu2x-ncnn-vulkan waifu2x.cpp)
+add_executable(waifu2x-ncnn-vulkan main.cpp waifu2x.cpp)
 
 add_dependencies(waifu2x-ncnn-vulkan generate-spirv)
 

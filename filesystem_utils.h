@@ -16,29 +16,37 @@
 #endif // _WIN32
 
 #if _WIN32
-static bool path_is_directory(const wchar_t* path)
+typedef std::wstring path_t;
+#define PATHSTR(X) L##X
+#else
+typedef std::string path_t;
+#define PATHSTR(X) X
+#endif
+
+#if _WIN32
+static bool path_is_directory(const path_t& path)
 {
-    return GetFileAttributesW(path) & FILE_ATTRIBUTE_DIRECTORY;
+    return GetFileAttributesW(path.c_str()) & FILE_ATTRIBUTE_DIRECTORY;
 }
 
-static int list_directory(const wchar_t* dirpath, std::vector<std::wstring>& imagepaths)
+static int list_directory(const path_t& dirpath, std::vector<path_t>& imagepaths)
 {
     imagepaths.clear();
 
-    _WDIR* dir = _wopendir(dirpath);
+    _WDIR* dir = _wopendir(dirpath.c_str());
     if (!dir)
     {
-        fwprintf(stderr, L"opendir failed %s\n", dirpath);
+        fwprintf(stderr, L"opendir failed %ls\n", dirpath.c_str());
         return -1;
     }
 
     struct _wdirent* ent = 0;
-    while (ent = _wreaddir(dir))
+    while ((ent = _wreaddir(dir)))
     {
         if (ent->d_type != DT_REG)
             continue;
 
-        imagepaths.push_back(std::wstring(ent->d_name));
+        imagepaths.push_back(path_t(ent->d_name));
     }
 
     _wclosedir(dir);
@@ -46,31 +54,31 @@ static int list_directory(const wchar_t* dirpath, std::vector<std::wstring>& ima
     return 0;
 }
 #else // _WIN32
-static bool path_is_directory(const char* path)
+static bool path_is_directory(const path_t& path)
 {
     struct stat s;
-    stat(path, &s);
+    stat(path.c_str(), &s);
     return S_ISDIR(s.st_mode);
 }
 
-static int list_directory(const char* dirpath, std::vector<std::string>& imagepaths)
+static int list_directory(const path_t& dirpath, std::vector<path_t>& imagepaths)
 {
     imagepaths.clear();
 
-    DIR* dir = opendir(dirpath);
+    DIR* dir = opendir(dirpath.c_str());
     if (!dir)
     {
-        fprintf(stderr, "opendir failed %s\n", dirpath);
+        fprintf(stderr, "opendir failed %s\n", dirpath.c_str());
         return -1;
     }
 
     struct dirent* ent = 0;
-    while (ent = readdir(dir))
+    while ((ent = readdir(dir)))
     {
         if (ent->d_type != DT_REG)
             continue;
 
-        imagepaths.push_back(std::string(ent->d_name));
+        imagepaths.push_back(path_t(ent->d_name));
     }
 
     closedir(dir);

@@ -496,7 +496,7 @@ int main(int argc, char** argv)
 #endif
 
 #if _WIN32
-    CoInitialize(0);
+    CoInitializeEx(NULL, COINIT_MULTITHREADED);
 #endif
 
     ncnn::create_gpu_instance();

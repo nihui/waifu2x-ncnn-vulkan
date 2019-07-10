@@ -414,8 +414,8 @@ int main(int argc, char** argv)
             output_files.resize(count);
             for (int i=0; i<count; i++)
             {
-                input_files[i] = inputpath + '/' + filenames[i];
-                output_files[i] = outputpath + '/' + filenames[i] + PATHSTR(".png");
+                input_files[i] = inputpath + PATHSTR('/') + filenames[i];
+                output_files[i] = outputpath + PATHSTR('/') + filenames[i] + PATHSTR(".png");
             }
         }
         else if (!path_is_directory(inputpath) && !path_is_directory(outputpath))

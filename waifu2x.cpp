@@ -83,15 +83,14 @@ static const uint32_t waifu2x_postproc_int8s_spv_data[] = {
 };
 #endif
 
-class waifu2x {
-private:
-	ncnn::Net net;
-	ncnn::VulkanDevice* vkdev;
-	ncnn::Pipeline* preproc;
-	ncnn::Pipeline* postproc;
+
+class waifu2x_config {
+public:
 	int prepadding = 0;
-	int scale = 0;
-	int tilesize = 0;
+	int noise = 0;
+	int scale = 2;
+	int tilesize = 128;
+private:
 #if WIN32
 	const wchar_t* model = L"models-cunet";
 	wchar_t parampath[256];
@@ -101,79 +100,26 @@ private:
 	char parampath[256];
 	char modelpath[256];
 #endif
-
 public:
 #ifdef WIN32
-	waifu2x(int gpuid = 0, int noise = 0, int scale = 2, int tilesize = 400, const wchar_t* model = 0) {
+	waifu2x_config(int noise = 0, int scale = 2, int tilesize = 400, const wchar_t* model = 0)
+		:parampath(L""), modelpath(L"") {
 #else
-	waifu2x(int gpuid = 0, int noise = 0, int scale = 2, int tilesize = 400, const char* model = 0) {
+	waifu2x_config(int noise = 0, int scale = 2, int tilesize = 400, const char* model = 0)
+		:parampath(""), modelpath("") {
 #endif
+		if (noise >= 0) {
+			this->noise = noise;
+		}
+		if (scale >= 1) {
+			this->noise = scale;
+		}
+		if (tilesize >= 32) {
+			this->tilesize = tilesize;
+		}
 		if (model) {
 			this->model = model;
 		}
-		if (noise < -1 || noise > 3 || scale < 1 || scale > 2)
-		{
-			fprintf(stderr, "invalid noise or scale argument\n");
-			throw - 1;
-		}
-
-		if (tilesize < 32)
-		{
-			fprintf(stderr, "invalid tilesize argument\n");
-			throw - 1;
-		}
-
-		this->scale = scale;
-		this->tilesize = tilesize;
-
-		ncnn::create_gpu_instance();
-
-		int gpu_count = ncnn::get_gpu_count();
-		if (gpuid < 0 || gpuid >= gpu_count)
-		{
-			fprintf(stderr, "invalid gpu device");
-			ncnn::destroy_gpu_instance();
-			throw - 1;
-		}
-		this->vkdev = ncnn::get_gpu_device(gpuid);
-
-		ncnn::VkAllocator* blob_vkallocator = this->vkdev->acquire_blob_allocator();
-		ncnn::VkAllocator* staging_vkallocator = this->vkdev->acquire_staging_allocator();
-
-		ncnn::Option opt;
-		opt.use_vulkan_compute = true;
-		opt.blob_vkallocator = blob_vkallocator;
-		opt.workspace_vkallocator = blob_vkallocator;
-		opt.staging_vkallocator = staging_vkallocator;
-		opt.use_fp16_packed = true;
-		opt.use_fp16_storage = true;
-		opt.use_fp16_arithmetic = false;
-#if !defined(NO_INT8_SUPPORT)
-		opt.use_int8_storage = true;
-#else
-		opt.use_int8_storage = false;
-#endif
-		opt.use_int8_arithmetic = false;
-
-		this->net.opt = opt;
-		this->net.set_vulkan_device(this->vkdev);
-		this->init_proc();
-		this->set_params(noise, scale);
-		this->load_models();
-	}
-	~waifu2x()
-	{
-		// cleanup preprocess and postprocess pipeline
-		delete this->preproc;
-		delete this->postproc;
-
-		this->vkdev->reclaim_blob_allocator(this->net.opt.blob_vkallocator);
-		this->vkdev->reclaim_staging_allocator(this->net.opt.staging_vkallocator);
-
-		ncnn::destroy_gpu_instance();
-	}
-private:
-	void set_params(int noise, int scale) {
 #if WIN32
 		if (wcsstr(this->model, L"models-cunet"))
 #else
@@ -204,7 +150,7 @@ private:
 		else
 		{
 			fprintf(stderr, "unknown model dir type");
-			throw - 1;
+			return;
 		}
 
 #if WIN32
@@ -241,40 +187,173 @@ private:
 		}
 #endif
 	}
-	void load_models() {
-#if WIN32
+#ifdef WIN32
+	FILE* read_param() {
+		return read_file(this->parampath);
+	}
+	FILE* read_model() {
+		return read_file(this->modelpath);
+	}
+private:
+	FILE* read_file(wchar_t* path) {
+		FILE* fp = _wfopen(path, L"rb");
+		if (!fp)
 		{
-			FILE* fp = _wfopen(this->parampath, L"rb");
-			if (!fp)
-			{
-				fwprintf(stderr, L"_wfopen %s failed\n", this->parampath);
-				throw - 1;
-			}
-
-			this->net.load_param(fp);
-
-			fclose(fp);
+			fwprintf(stderr, L"_wfopen %s failed\n", path);
+			return nullptr;
 		}
-		{
-			FILE* fp = _wfopen(this->modelpath, L"rb");
-			if (!fp)
-			{
-				fwprintf(stderr, L"_wfopen %s failed\n", this->modelpath);
-				throw - 1;
-			}
-
-			this->net.load_model(fp);
-
-			fclose(fp);
-		}
+		return fp;
+	}
 #else
-		this->net..load_param(parampath);
-		this->net.load_model(modelpath);
+	char* read_param() {
+		return this->parampath;
+	}
+	char* read_model() {
+		return this->modelpath;
+	}
 #endif
+};
+
+class waifu2x_image {
+public:
+	const waifu2x_config* config;
+	int w, h, c;
+	int prepadding_bottom, prepadding_right;
+	int xtiles, ytiles;
+	const int TILE_SIZE_X, TILE_SIZE_Y;
+	unsigned char* data;
+	ncnn::Mat buffer;
+	waifu2x_image(waifu2x_config* config = new waifu2x_config())
+		:config(config), TILE_SIZE_X(config->tilesize), TILE_SIZE_Y(config->tilesize),
+		w(0), h(0), c(0), prepadding_bottom(0), prepadding_right(0), xtiles(0), ytiles(0), data(0)
+	{}
+	~waifu2x_image() {
+#ifdef WIN32
+		free(this->data);
+#else
+		stbi_image_free(this->data);
+#endif
+	}
+#ifdef WIN32
+	void encode(const wchar_t* output) {
+#else
+	void encode(const char* output) {
+#endif
+#if WIN32
+		int ret = wic_encode_image(output, this->buffer.w, this->buffer.h, 3, this->buffer.data);
+#else
+		int ret = stbi_write_png(outputpngpath, outrgb.w, outrgb.h, 3, outrgb.data, 0);
+#endif
+		if (ret == 0)
+		{
+			fprintf(stderr, "encode image %ls failed\n", output);
+			return;
+		}
+	}
+#ifdef WIN32
+	void decode(const wchar_t* input) {
+#else
+	void decode(const char* input) {
+#endif
+#if WIN32
+		this->data = wic_decode_image(input, &this->w, &this->h, &this->c);
+#else
+		this->data = stbi_load(imagepath, &this->w, &this->h, &this->c, 3);
+#endif 
+		if (!this->data)
+		{
+			fprintf(stderr, "decode image %ls failed\n", input);
+			return;
+		}
+		this->calc_config();
+		this->buffer = ncnn::Mat(this->w * this->config->scale, this->h * this->config->scale, (size_t)3u, 3);
+	}
+
+private:
+	void calc_config() {
+		// prepadding
+		int prepadding_bottom = this->config->prepadding;
+		int prepadding_right = this->config->prepadding;
+		if (this->config->scale == 1)
+		{
+			prepadding_bottom += (this->h + 3) / 4 * 4 - this->h;
+			prepadding_right += (this->w + 3) / 4 * 4 - this->w;
+		}
+		if (this->config->scale == 2)
+		{
+			prepadding_bottom += (this->h + 1) / 2 * 2 - this->h;
+			prepadding_right += (this->w + 1) / 2 * 2 - this->w;
+		}
+		this->prepadding_bottom = prepadding_bottom;
+		this->prepadding_right = prepadding_right;
+		this->xtiles = (this->w + this->TILE_SIZE_X - 1) / this->TILE_SIZE_X;
+		this->ytiles = (this->h + this->TILE_SIZE_Y - 1) / this->TILE_SIZE_Y;
+	}
+};
+
+class waifu2x {
+private:
+	ncnn::Net net;
+	ncnn::VulkanDevice* vkdev;
+	ncnn::Pipeline* preproc;
+	ncnn::Pipeline* postproc;
+	waifu2x_config config;
+
+public:
+	waifu2x(waifu2x_config config, int gpuid = 0) {
+		this->config = config;
+		ncnn::create_gpu_instance();
+
+		int gpu_count = ncnn::get_gpu_count();
+		if (gpuid < 0 || gpuid >= gpu_count)
+		{
+			fprintf(stderr, "invalid gpu device");
+			ncnn::destroy_gpu_instance();
+			return;
+		}
+		this->vkdev = ncnn::get_gpu_device(gpuid);
+
+		ncnn::VkAllocator* blob_vkallocator = this->vkdev->acquire_blob_allocator();
+		ncnn::VkAllocator* staging_vkallocator = this->vkdev->acquire_staging_allocator();
+
+		ncnn::Option opt;
+		opt.use_vulkan_compute = true;
+		opt.blob_vkallocator = blob_vkallocator;
+		opt.workspace_vkallocator = blob_vkallocator;
+		opt.staging_vkallocator = staging_vkallocator;
+		opt.use_fp16_packed = true;
+		opt.use_fp16_storage = true;
+		opt.use_fp16_arithmetic = false;
+#if !defined(NO_INT8_SUPPORT)
+		opt.use_int8_storage = true;
+#else
+		opt.use_int8_storage = false;
+#endif
+		opt.use_int8_arithmetic = false;
+
+		this->net.opt = opt;
+		this->net.set_vulkan_device(this->vkdev);
+		this->init_proc();
+		this->load_models();
+	}
+	~waifu2x()
+	{
+		// cleanup preprocess and postprocess pipeline
+		delete this->preproc;
+		delete this->postproc;
+
+		this->vkdev->reclaim_blob_allocator(this->net.opt.blob_vkallocator);
+		this->vkdev->reclaim_staging_allocator(this->net.opt.staging_vkallocator);
+
+		ncnn::destroy_gpu_instance();
+	}
+private:
+	void load_models() {
+		this->net.load_param(this->config.read_param());
+		this->net.load_model(this->config.read_model());
 	}
 	void init_proc() {
 		// initialize preprocess and postprocess pipeline
-
 		vector<ncnn::vk_specialization_type> specializations(1);
 #if WIN32
 		specializations[0].i = 1;
@@ -307,74 +386,24 @@ private:
 				this->postproc->create(waifu2x_postproc_spv_data, sizeof(waifu2x_postproc_spv_data), "waifu2x_postproc", specializations, 2, 8);
 	}
 public:
-#ifdef WIN32
-	void proc_image(const wchar_t* imagepath = 0, const wchar_t* outputpngpath = 0) {
-#else
-	void proc_image(const char* imagepath = 0, const char* outputpngpath = 0) {
-#endif
-		const int TILE_SIZE_X = this->tilesize;
-		const int TILE_SIZE_Y = this->tilesize;
-#if WIN32
-		int w, h, c;
-		unsigned char* bgrdata = wic_decode_image(imagepath, &w, &h, &c);
-		if (!bgrdata)
-		{
-			fprintf(stderr, "decode image %ls failed\n", imagepath);
-			throw - 1;
-		}
-
-		ncnn::Mat outbgr(w * this->scale, h * this->scale, (size_t)3u, 3);
-#else // WIN32
-		int w, h, c;
-		unsigned char* rgbdata = stbi_load(imagepath, &w, &h, &c, 3);
-		if (!rgbdata)
-		{
-			fprintf(stderr, "decode image %s failed\n", imagepath);
-			throw - 1;
-		}
-
-		ncnn::Mat outrgb(w * scale, h * scale, (size_t)3u, 3);
-#endif // WIN32
-
-		// prepadding
-		int prepadding_bottom = this->prepadding;
-		int prepadding_right = this->prepadding;
-		if (this->scale == 1)
-		{
-			prepadding_bottom += (h + 3) / 4 * 4 - h;
-			prepadding_right += (w + 3) / 4 * 4 - w;
-		}
-		if (this->scale == 2)
-		{
-			prepadding_bottom += (h + 1) / 2 * 2 - h;
-			prepadding_right += (w + 1) / 2 * 2 - w;
-		}
-
-		// each tile 400x400
-		int xtiles = (w + TILE_SIZE_X - 1) / TILE_SIZE_X;
-		int ytiles = (h + TILE_SIZE_Y - 1) / TILE_SIZE_Y;
-
+	void proc_image(waifu2x_image* image) {
 		//#pragma omp parallel for num_threads(2)
-		for (int yi = 0; yi < ytiles; yi++)
+		for (int yi = 0; yi < image->ytiles; yi++)
 		{
-			int in_tile_y0 = max(yi * TILE_SIZE_Y - this->prepadding, 0);
-			int in_tile_y1 = min((yi + 1) * TILE_SIZE_Y + prepadding_bottom, h);
+			int in_tile_y0 = max(yi * image->TILE_SIZE_Y - image->config->prepadding, 0);
+			int in_tile_y1 = min((yi + 1) * image->TILE_SIZE_Y + image->prepadding_bottom, image->h);
 
 			ncnn::Mat in;
 			if (this->net.opt.use_fp16_storage && this->net.opt.use_int8_storage)
 			{
-#if WIN32
-				in = ncnn::Mat(w, (in_tile_y1 - in_tile_y0), bgrdata + in_tile_y0 * w * 3, (size_t)3u, 1);
-#else
-				in = ncnn::Mat(w, (in_tile_y1 - in_tile_y0), rgbdata + in_tile_y0 * w * 3, (size_t)3u, 1);
-#endif
+				in = ncnn::Mat(image->w, (in_tile_y1 - in_tile_y0), image->data + in_tile_y0 * image->w * 3, (size_t)3u, 1);
 			}
 			else
 			{
 #if WIN32
-				in = ncnn::Mat::from_pixels(bgrdata + in_tile_y0 * w * 3, ncnn::Mat::PIXEL_BGR2RGB, w, (in_tile_y1 - in_tile_y0));
+				in = ncnn::Mat::from_pixels(image->data + in_tile_y0 * image->w * 3, ncnn::Mat::PIXEL_BGR2RGB, image->w, (in_tile_y1 - in_tile_y0));
 #else
-				in = ncnn::Mat::from_pixels(rgbdata + in_tile_y0 * w * 3, ncnn::Mat::PIXEL_RGB, w, (in_tile_y1 - in_tile_y0));
+				in = ncnn::Mat::from_pixels(image->data + in_tile_y0 * image->w * 3, ncnn::Mat::PIXEL_RGB, image->w, (in_tile_y1 - in_tile_y0));
 #endif
 			}
 
@@ -390,36 +419,36 @@ public:
 
 				cmd.record_upload(in_gpu);
 
-				if (xtiles > 1)
+				if (image->xtiles > 1)
 				{
 					cmd.submit_and_wait();
 					cmd.reset();
 				}
 			}
 
-			int out_tile_y0 = max(yi * TILE_SIZE_Y, 0);
-			int out_tile_y1 = min((yi + 1) * TILE_SIZE_Y, h);
+			int out_tile_y0 = max(yi * image->TILE_SIZE_Y, 0);
+			int out_tile_y1 = min((yi + 1) * image->TILE_SIZE_Y, image->h);
 
 			ncnn::VkMat out_gpu;
 			if (this->net.opt.use_fp16_storage && this->net.opt.use_int8_storage)
 			{
-				out_gpu.create(w * this->scale, (out_tile_y1 - out_tile_y0) * this->scale, (size_t)3u, 1, this->net.opt.blob_vkallocator, this->net.opt.staging_vkallocator);
+				out_gpu.create(image->w * this->config.scale, (out_tile_y1 - out_tile_y0) * this->config.scale, (size_t)3u, 1, this->net.opt.blob_vkallocator, this->net.opt.staging_vkallocator);
 			}
 			else
 			{
-				out_gpu.create(w * this->scale, (out_tile_y1 - out_tile_y0) * this->scale, 3, (size_t)4u, 1, this->net.opt.blob_vkallocator, this->net.opt.staging_vkallocator);
+				out_gpu.create(image->w * this->config.scale, (out_tile_y1 - out_tile_y0) * this->config.scale, 3, (size_t)4u, 1, this->net.opt.blob_vkallocator, this->net.opt.staging_vkallocator);
 			}
 
-			for (int xi = 0; xi < xtiles; xi++)
+			for (int xi = 0; xi < image->xtiles; xi++)
 			{
 				// preproc
 				ncnn::VkMat in_tile_gpu;
 				{
 					// crop tile
-					int tile_x0 = xi * TILE_SIZE_X;
-					int tile_x1 = min((xi + 1) * TILE_SIZE_X, w) + prepadding + prepadding_right;
-					int tile_y0 = yi * TILE_SIZE_Y;
-					int tile_y1 = min((yi + 1) * TILE_SIZE_Y, h) + prepadding + prepadding_bottom;
+					int tile_x0 = xi * image->TILE_SIZE_X;
+					int tile_x1 = min((xi + 1) * image->TILE_SIZE_X, image->w) + this->config.prepadding + image->prepadding_right;
+					int tile_y0 = yi * image->TILE_SIZE_Y;
+					int tile_y1 = min((yi + 1) * image->TILE_SIZE_Y, image->h) + this->config.prepadding + image->prepadding_bottom;
 
 					in_tile_gpu.create(tile_x1 - tile_x0, tile_y1 - tile_y0, 3, (size_t)4u, 1, this->net.opt.blob_vkallocator, this->net.opt.staging_vkallocator);
 
@@ -434,9 +463,9 @@ public:
 					constants[3].i = in_tile_gpu.w;
 					constants[4].i = in_tile_gpu.h;
 					constants[5].i = in_tile_gpu.cstep;
-					constants[6].i = max(this->prepadding - yi * TILE_SIZE_Y, 0);
-					constants[7].i = this->prepadding;
-					constants[8].i = xi * TILE_SIZE_X;
+					constants[6].i = max(this->config.prepadding - yi * image->TILE_SIZE_Y, 0);
+					constants[7].i = this->config.prepadding;
+					constants[8].i = xi * image->TILE_SIZE_X;
 
 					cmd.record_pipeline(this->preproc, bindings, constants, in_tile_gpu);
 				}
@@ -463,18 +492,18 @@ public:
 					constants[3].i = out_gpu.w;
 					constants[4].i = out_gpu.h;
 					constants[5].i = out_gpu.cstep;
-					constants[6].i = xi * TILE_SIZE_X * this->scale;
-					constants[7].i = out_gpu.w - xi * TILE_SIZE_X * this->scale;
+					constants[6].i = xi * image->TILE_SIZE_X * this->config.scale;
+					constants[7].i = out_gpu.w - xi * image->TILE_SIZE_X * this->config.scale;
 
 					ncnn::VkMat dispatcher;
-					dispatcher.w = out_gpu.w - xi * TILE_SIZE_X * this->scale;
+					dispatcher.w = out_gpu.w - xi * image->TILE_SIZE_X * this->config.scale;
 					dispatcher.h = out_gpu.h;
 					dispatcher.c = 3;
 
 					cmd.record_pipeline(this->postproc, bindings, constants, dispatcher);
 				}
 
-				if (xtiles > 1)
+				if (image->xtiles > 1)
 				{
 					cmd.submit_and_wait();
 					cmd.reset();
@@ -491,12 +520,7 @@ public:
 
 			if (this->net.opt.use_fp16_storage && this->net.opt.use_int8_storage)
 			{
-#if WIN32
-				ncnn::Mat out(out_gpu.w, out_gpu.h, (unsigned char*)outbgr.data + yi * this->scale * TILE_SIZE_Y * w * this->scale * 3, (size_t)3u, 1);
-#else
-				ncnn::Mat out(out_gpu.w, out_gpu.h, (unsigned char*)outrgb.data + yi * scale * TILE_SIZE_Y * w * scale * 3, (size_t)3u, 1);
-#endif
-
+				ncnn::Mat out(out_gpu.w, out_gpu.h, (unsigned char*)image->buffer.data + yi * this->config.scale * image->TILE_SIZE_Y * image->w * this->config.scale * 3, (size_t)3u, 1);
 				out_gpu.download(out);
 			}
 			else
@@ -504,36 +528,15 @@ public:
 				ncnn::Mat out;
 				out.create_like(out_gpu, this->net.opt.blob_allocator);
 				out_gpu.download(out);
-
 #if WIN32
-				out.to_pixels((unsigned char*)outbgr.data + yi * this->scale * TILE_SIZE_Y * w * this->scale * 3, ncnn::Mat::PIXEL_RGB2BGR);
+				out.to_pixels((unsigned char*)image->buffer.data + yi * this->config.scale * image->TILE_SIZE_Y * image->w * this->config.scale * 3, ncnn::Mat::PIXEL_RGB2BGR);
 #else
-				out.to_pixels((unsigned char*)outrgb.data + yi * this->scale * TILE_SIZE_Y * w * this->scale * 3, ncnn::Mat::PIXEL_RGB);
+				out.to_pixels((unsigned char*)image->buffer.data + yi * this->config.scale * image->TILE_SIZE_Y * image->w * this->config.scale * 3, ncnn::Mat::PIXEL_RGB);
 #endif
 			}
+			}
 		}
-
-#if WIN32
-		free(bgrdata);
-
-		int ret = wic_encode_image(outputpngpath, outbgr.w, outbgr.h, 3, outbgr.data);
-		if (ret == 0)
-		{
-			fprintf(stderr, "encode image %ls failed\n", outputpngpath);
-			throw - 1;
-		}
-#else
-		stbi_image_free(rgbdata);
-
-		int ret = stbi_write_png(outputpngpath, outrgb.w, outrgb.h, 3, outrgb.data, 0);
-		if (ret == 0)
-		{
-			fprintf(stderr, "encode image %s failed\n", outputpngpath);
-			throw - 1;
-		}
-#endif
-	}
-};
+	};
 
 static void print_usage()
 {
@@ -659,10 +662,12 @@ int main(int argc, char** argv)
 #if WIN32
 	CoInitialize(0);
 #endif
-
-	waifu2x* processer = new waifu2x(gpuid, noise, scale, tilesize);
-	fwprintf(stderr, outputpngpath);
-	processer->proc_image(imagepath, outputpngpath);
+	auto config = waifu2x_config(noise, scale, tilesize, model);
+	auto image = new waifu2x_image(&config);
+	auto processer = new waifu2x(config, gpuid);
+	image->decode(imagepath);
+	processer->proc_image(image);
+	image->encode(outputpngpath);
 	delete processer;
 
 	return 0;

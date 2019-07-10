@@ -26,7 +26,8 @@ typedef std::string path_t;
 #if _WIN32
 static bool path_is_directory(const path_t& path)
 {
-    return GetFileAttributesW(path.c_str()) & FILE_ATTRIBUTE_DIRECTORY;
+    DWORD attr = GetFileAttributesW(path.c_str());
+    return (attr != INVALID_FILE_ATTRIBUTES) && (attr & FILE_ATTRIBUTE_DIRECTORY);
 }
 
 static int list_directory(const path_t& dirpath, std::vector<path_t>& imagepaths)
@@ -57,7 +58,8 @@ static int list_directory(const path_t& dirpath, std::vector<path_t>& imagepaths
 static bool path_is_directory(const path_t& path)
 {
     struct stat s;
-    stat(path.c_str(), &s);
+    if (stat(path.c_str(), &s) != 0)
+        return false;
     return S_ISDIR(s.st_mode);
 }
 

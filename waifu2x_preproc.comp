@@ -62,9 +62,9 @@ void main()
     float v;
 
     if (bgr == 1)
-        v = float(bottom_blob_data[v_offset * 3 + 2 - gz]);
+        v = float(uint(bottom_blob_data[v_offset * 3 + 2 - gz]));
     else
-        v = float(bottom_blob_data[v_offset * 3 + gz]);
+        v = float(uint(bottom_blob_data[v_offset * 3 + gz]));
 #else
     int v_offset = gz * p.cstep + y * p.w + x;
 

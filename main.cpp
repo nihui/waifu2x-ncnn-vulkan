@@ -1,6 +1,7 @@
 // waifu2x implemented with ncnn library
 
 #include <stdio.h>
+#include <algorithm>
 #include <queue>
 #include <vector>
 
@@ -54,6 +55,7 @@ static wchar_t getopt(int argc, wchar_t* const argv[], const wchar_t* optstring)
 #endif // _WIN32
 
 // ncnn
+#include "cpu.h"
 #include "gpu.h"
 #include "platform.h"
 
@@ -398,6 +400,12 @@ int main(int argc, char** argv)
         return -1;
     }
 
+    if (jobs_load < 1 || jobs_proc < 1 || jobs_save < 1)
+    {
+        fprintf(stderr, "invalid thread count argument\n");
+        return -1;
+    }
+
     // collect input and output filepath
     std::vector<path_t> input_files;
     std::vector<path_t> output_files;
@@ -501,6 +509,10 @@ int main(int argc, char** argv)
 
     ncnn::create_gpu_instance();
 
+    int cpu_count = std::max(1, ncnn::get_cpu_count());
+    jobs_load = std::min(jobs_load, cpu_count);
+    jobs_save = std::min(jobs_save, cpu_count);
+
     int gpu_count = ncnn::get_gpu_count();
     if (gpuid < 0 || gpuid >= gpu_count)
     {
@@ -509,6 +521,9 @@ int main(int argc, char** argv)
         ncnn::destroy_gpu_instance();
         return -1;
     }
+
+    int gpu_queue_count = ncnn::get_gpu_info(gpuid).compute_queue_count;
+    jobs_proc = std::min(jobs_proc, gpu_queue_count);
 
     {
         Waifu2x waifu2x(gpuid);

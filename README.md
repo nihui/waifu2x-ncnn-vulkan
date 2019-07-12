@@ -3,7 +3,7 @@ waifu2x converter ncnn version, runs fast on intel / amd / nvidia with vulkan
 
 waifu2x-ncnn-vulkan uses [ncnn project](https://github.com/Tencent/ncnn) as the universal neural network inference framework
 
-# download windows exe for your intel/amd/nvidia GPU card
+# download windows exe for intel/amd/nvidia GPU
 https://github.com/nihui/waifu2x-ncnn-vulkan/releases
 
 This package includes all the binary and models required, it is portable, no cuda or caffe runtime needed :)
@@ -16,18 +16,22 @@ waifu2x-ncnn-vulkan.exe -i input.jpg -o output.png -n 2 -s 2
 ```
 Usage: waifu2x-ncnn-vulkan -i infile -o outfile [options]...
 
-  -h               show this help
-  -i input-image   input image path (jpg/png)
-  -o output-image  output image path (png)
-  -n noise-level   denoise level (-1/0/1/2/3, default=0)
-  -s scale         upscale ratio (1/2, default=2)
-  -t tile-size     tile size (>=32, default=400)
-  -m model-path    waifu2x model path (default=models-cunet)
-  -g gpu-id        gpu device to use (default=0)
+  -h                   show this help
+  -v                   verbose output
+  -i input-path        input image path (jpg/png) or directory
+  -o output-path       output image path (png) or directory
+  -n noise-level       denoise level (-1/0/1/2/3, default=0)
+  -s scale             upscale ratio (1/2, default=2)
+  -t tile-size         tile size (>=32, default=400)
+  -m model-path        waifu2x model path (default=models-cunet)
+  -g gpu-id            gpu device to use (default=0)
+  -j load:proc:save    thread count for load/proc/save (default=1:2:2)
 ```
+* input-path and output-path accept either file path or directory path
 * noise-level = noise level, large value means strong denoise effect, -1=no effect
 * scale = scale level, 1=no scale, 2=upscale 2x
 * tile-size = tile size, use smaller value to reduce GPU memory usage, default is 400
+* load:proc:save = thread count for the three stages (image decoding + waifu2x upscaling + image encoding), use larger value may increase GPU utility and consume more GPU memory. You can tune this configuration as "4:4:4" for many small-size images, and "2:2:2" for large-size images. The default setting usually works fine for most situations. If you find that your GPU is hungry, do increase thread count to achieve faster processing.
 
 If you encounter crash or error, try to upgrade your GPU driver:
   - Intel: https://downloadcenter.intel.com/product/80939/Graphics-Drivers
@@ -93,9 +97,12 @@ waifu2x-ncnn-vulkan.exe -i origin.jpg -o output.png -n 2 -s 2
 ![waifu2x](https://raw.githubusercontent.com/nihui/waifu2x-ncnn-vulkan/master/2.png)
 
 # original waifu2x project
-https://github.com/nagadomi/waifu2x
+- https://github.com/nagadomi/waifu2x
+- https://github.com/lltcggie/waifu2x-caffe
 
-https://github.com/lltcggie/waifu2x-caffe
+# ncnn project (>=20190712)
+- https://github.com/Tencent/ncnn/tree/8c537069875a28d5380c6bdcbf7964d73803b7b3
 
-# ncnn project (>=20190611)
-https://github.com/Tencent/ncnn/tree/20190611
+# other opensource code used
+- https://github.com/nothings/stb for decoding and encoding image on Linux / MacOS
+- https://github.com/tronkko/dirent for listing files in directory on Windows

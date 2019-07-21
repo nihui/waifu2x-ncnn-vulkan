@@ -64,8 +64,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 
 # change these path to yours
-include_directories("/home/nihui/osd/ncnn/build/install/include")
-link_directories("/home/nihui/osd/ncnn/build/install/lib")
+set(ncnn_DIR "/home/nihui/dev/ncnn/build/install/lib/cmake/ncnn")
+find_package(ncnn REQUIRED)
 
 # look for vulkan compute shader and compile
 set(SHADER_SPV_HEX_FILES)

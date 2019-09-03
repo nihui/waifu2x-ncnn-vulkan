@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <vector>
 #include <string>
+#include <algorithm>
 
 #if _WIN32
 #include <windows.h>
@@ -51,6 +52,7 @@ static int list_directory(const path_t& dirpath, std::vector<path_t>& imagepaths
     }
 
     _wclosedir(dir);
+    std::sort(imagepaths.begin(), imagepaths.end());
 
     return 0;
 }
@@ -84,6 +86,7 @@ static int list_directory(const path_t& dirpath, std::vector<path_t>& imagepaths
     }
 
     closedir(dir);
+    std::sort(imagepaths.begin(), imagepaths.end());
 
     return 0;
 }

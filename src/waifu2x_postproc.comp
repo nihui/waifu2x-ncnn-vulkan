@@ -56,7 +56,7 @@ void main()
 #if NCNN_int8_storage
     int v_offset = gy * p.outw + gx + p.offset_x;
 
-    int v32 = clamp(int(floor(v * denorm_val + clip_eps)), 0, 255);
+    uint v32 = clamp(uint(floor(v * denorm_val + clip_eps)), 0, 255);
 
     if (bgr == 1)
         top_blob_data[v_offset * 3 + 2 - gz] = uint8_t(v32);

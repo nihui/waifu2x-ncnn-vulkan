@@ -459,6 +459,10 @@ int main(int argc, char** argv)
     {
         prepadding = 7;
     }
+    else if (model.find(PATHSTR("models-upconv_7_photo")) != path_t::npos)
+    {
+        prepadding = 7;
+    }
     else
     {
         fprintf(stderr, "unknown model dir type\n");

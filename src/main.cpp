@@ -4,7 +4,8 @@
 #include <algorithm>
 #include <queue>
 #include <vector>
-
+#include <locale>
+  
 #if _WIN32
 // image decoder and encoder with wic
 #include "wic_image.h"
@@ -27,6 +28,7 @@ static wchar_t* optarg = NULL;
 static int optind = 1;
 static wchar_t getopt(int argc, wchar_t* const argv[], const wchar_t* optstring)
 {
+	setlocale( LC_ALL, "en_US.UTF-8" );
     if (optind >= argc || argv[optind][0] != L'-')
         return -1;
 

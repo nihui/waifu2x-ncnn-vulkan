@@ -61,7 +61,7 @@ If you encounter crash or error, try to upgrade your GPU driver
 - cuDNN 10.1
 
 ```powershell
-Measure-Command { waifu2x-ncnn-vulkan.exe -i input.png -o output.png -n 2 -s 2 [block size] -m [model dir] }
+Measure-Command { waifu2x-ncnn-vulkan.exe -i input.png -o output.png -n 2 -s 2 -t [block size] -m [model dir] }
 ```
 
 ```powershell

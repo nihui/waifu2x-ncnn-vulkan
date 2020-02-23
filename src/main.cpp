@@ -305,6 +305,7 @@ int main(int argc, char** argv)
     int tta_mode = 0;
 
 #if _WIN32
+    setlocale(LC_ALL, "");
     wchar_t opt;
     while ((opt = getopt(argc, argv, L"i:o:n:s:t:m:g:j:vxh")) != (wchar_t)-1)
     {

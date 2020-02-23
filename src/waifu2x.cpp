@@ -79,7 +79,7 @@ int Waifu2x::load(const std::string& parampath, const std::string& modelpath)
         FILE* fp = _wfopen(parampath.c_str(), L"rb");
         if (!fp)
         {
-            fwprintf(stderr, L"_wfopen %s failed\n", parampath);
+            fwprintf(stderr, L"_wfopen %ls failed\n", parampath.c_str());
         }
 
         net.load_param(fp);
@@ -90,7 +90,7 @@ int Waifu2x::load(const std::string& parampath, const std::string& modelpath)
         FILE* fp = _wfopen(modelpath.c_str(), L"rb");
         if (!fp)
         {
-            fwprintf(stderr, L"_wfopen %s failed\n", modelpath);
+            fwprintf(stderr, L"_wfopen %ls failed\n", modelpath.c_str());
         }
 
         net.load_model(fp);

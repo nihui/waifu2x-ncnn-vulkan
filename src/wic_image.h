@@ -20,7 +20,7 @@ unsigned char* wic_decode_image(const wchar_t* filepath, int* w, int* h, int* c)
     int stride = 0;
     unsigned char* bgrdata = 0;
 
-    if (CoCreateInstance(CLSID_WICImagingFactory, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&factory)))
+    if (CoCreateInstance(CLSID_WICImagingFactory1, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&factory)))
         goto RETURN;
 
     if (factory->CreateDecoderFromFilename(filepath, 0, GENERIC_READ, WICDecodeMetadataCacheOnDemand, &decoder))
@@ -89,7 +89,7 @@ int wic_encode_image(const wchar_t* filepath, int w, int h, int c, void* bgrdata
     unsigned char* data = 0;
     int ret = 0;
 
-    if (CoCreateInstance(CLSID_WICImagingFactory, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&factory)))
+    if (CoCreateInstance(CLSID_WICImagingFactory1, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&factory)))
         goto RETURN;
 
     if (factory->CreateStream(&stream))

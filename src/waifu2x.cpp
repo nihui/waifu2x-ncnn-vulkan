@@ -24,7 +24,26 @@ static const uint32_t waifu2x_postproc_int8s_spv_data[] = {
     #include "waifu2x_postproc_int8s.spv.hex.h"
 };
 
-Waifu2x::Waifu2x(int gpuid)
+static const uint32_t waifu2x_preproc_tta_spv_data[] = {
+    #include "waifu2x_preproc_tta.spv.hex.h"
+};
+static const uint32_t waifu2x_preproc_tta_fp16s_spv_data[] = {
+    #include "waifu2x_preproc_tta_fp16s.spv.hex.h"
+};
+static const uint32_t waifu2x_preproc_tta_int8s_spv_data[] = {
+    #include "waifu2x_preproc_tta_int8s.spv.hex.h"
+};
+static const uint32_t waifu2x_postproc_tta_spv_data[] = {
+    #include "waifu2x_postproc_tta.spv.hex.h"
+};
+static const uint32_t waifu2x_postproc_tta_fp16s_spv_data[] = {
+    #include "waifu2x_postproc_tta_fp16s.spv.hex.h"
+};
+static const uint32_t waifu2x_postproc_tta_int8s_spv_data[] = {
+    #include "waifu2x_postproc_tta_int8s.spv.hex.h"
+};
+
+Waifu2x::Waifu2x(int gpuid, bool _tta_mode)
 {
     net.opt.use_vulkan_compute = true;
     net.opt.use_fp16_packed = true;
@@ -37,6 +56,7 @@ Waifu2x::Waifu2x(int gpuid)
 
     waifu2x_preproc = 0;
     waifu2x_postproc = 0;
+    tta_mode = _tta_mode;
 }
 
 Waifu2x::~Waifu2x()
@@ -93,21 +113,42 @@ int Waifu2x::load(const std::string& parampath, const std::string& modelpath)
 
         waifu2x_preproc = new ncnn::Pipeline(net.vulkan_device());
         waifu2x_preproc->set_optimal_local_size_xyz(32, 32, 3);
-        if (net.opt.use_fp16_storage && net.opt.use_int8_storage)
-            waifu2x_preproc->create(waifu2x_preproc_int8s_spv_data, sizeof(waifu2x_preproc_int8s_spv_data), "waifu2x_preproc_int8s", specializations, 2, 9);
-        else if (net.opt.use_fp16_storage)
-            waifu2x_preproc->create(waifu2x_preproc_fp16s_spv_data, sizeof(waifu2x_preproc_fp16s_spv_data), "waifu2x_preproc_fp16s", specializations, 2, 9);
-        else
-            waifu2x_preproc->create(waifu2x_preproc_spv_data, sizeof(waifu2x_preproc_spv_data), "waifu2x_preproc", specializations, 2, 9);
 
         waifu2x_postproc = new ncnn::Pipeline(net.vulkan_device());
         waifu2x_postproc->set_optimal_local_size_xyz(32, 32, 3);
-        if (net.opt.use_fp16_storage && net.opt.use_int8_storage)
-            waifu2x_postproc->create(waifu2x_postproc_int8s_spv_data, sizeof(waifu2x_postproc_int8s_spv_data), "waifu2x_postproc_int8s", specializations, 2, 8);
-        else if (net.opt.use_fp16_storage)
-            waifu2x_postproc->create(waifu2x_postproc_fp16s_spv_data, sizeof(waifu2x_postproc_fp16s_spv_data), "waifu2x_postproc_fp16s", specializations, 2, 8);
+
+        if (tta_mode)
+        {
+            if (net.opt.use_fp16_storage && net.opt.use_int8_storage)
+                waifu2x_preproc->create(waifu2x_preproc_tta_int8s_spv_data, sizeof(waifu2x_preproc_tta_int8s_spv_data), "waifu2x_preproc_tta_int8s", specializations, 9, 9);
+            else if (net.opt.use_fp16_storage)
+                waifu2x_preproc->create(waifu2x_preproc_tta_fp16s_spv_data, sizeof(waifu2x_preproc_tta_fp16s_spv_data), "waifu2x_preproc_tta_fp16s", specializations, 9, 9);
+            else
+                waifu2x_preproc->create(waifu2x_preproc_tta_spv_data, sizeof(waifu2x_preproc_tta_spv_data), "waifu2x_preproc_tta", specializations, 9, 9);
+
+            if (net.opt.use_fp16_storage && net.opt.use_int8_storage)
+                waifu2x_postproc->create(waifu2x_postproc_tta_int8s_spv_data, sizeof(waifu2x_postproc_tta_int8s_spv_data), "waifu2x_postproc_tta_int8s", specializations, 9, 8);
+            else if (net.opt.use_fp16_storage)
+                waifu2x_postproc->create(waifu2x_postproc_tta_fp16s_spv_data, sizeof(waifu2x_postproc_tta_fp16s_spv_data), "waifu2x_postproc_tta_fp16s", specializations, 9, 8);
+            else
+                waifu2x_postproc->create(waifu2x_postproc_tta_spv_data, sizeof(waifu2x_postproc_tta_spv_data), "waifu2x_postproc_tta", specializations, 9, 8);
+        }
         else
-            waifu2x_postproc->create(waifu2x_postproc_spv_data, sizeof(waifu2x_postproc_spv_data), "waifu2x_postproc", specializations, 2, 8);
+        {
+            if (net.opt.use_fp16_storage && net.opt.use_int8_storage)
+                waifu2x_preproc->create(waifu2x_preproc_int8s_spv_data, sizeof(waifu2x_preproc_int8s_spv_data), "waifu2x_preproc_int8s", specializations, 2, 9);
+            else if (net.opt.use_fp16_storage)
+                waifu2x_preproc->create(waifu2x_preproc_fp16s_spv_data, sizeof(waifu2x_preproc_fp16s_spv_data), "waifu2x_preproc_fp16s", specializations, 2, 9);
+            else
+                waifu2x_preproc->create(waifu2x_preproc_spv_data, sizeof(waifu2x_preproc_spv_data), "waifu2x_preproc", specializations, 2, 9);
+
+            if (net.opt.use_fp16_storage && net.opt.use_int8_storage)
+                waifu2x_postproc->create(waifu2x_postproc_int8s_spv_data, sizeof(waifu2x_postproc_int8s_spv_data), "waifu2x_postproc_int8s", specializations, 2, 8);
+            else if (net.opt.use_fp16_storage)
+                waifu2x_postproc->create(waifu2x_postproc_fp16s_spv_data, sizeof(waifu2x_postproc_fp16s_spv_data), "waifu2x_postproc_fp16s", specializations, 2, 8);
+            else
+                waifu2x_postproc->create(waifu2x_postproc_spv_data, sizeof(waifu2x_postproc_spv_data), "waifu2x_postproc", specializations, 2, 8);
+        }
     }
 
     return 0;
@@ -197,71 +238,165 @@ int Waifu2x::process(const ncnn::Mat& inimage, ncnn::Mat& outimage) const
 
         for (int xi = 0; xi < xtiles; xi++)
         {
-            // preproc
-            ncnn::VkMat in_tile_gpu;
+            if (tta_mode)
             {
-                // crop tile
-                int tile_x0 = xi * TILE_SIZE_X;
-                int tile_x1 = std::min((xi + 1) * TILE_SIZE_X, w) + prepadding + prepadding_right;
-                int tile_y0 = yi * TILE_SIZE_Y;
-                int tile_y1 = std::min((yi + 1) * TILE_SIZE_Y, h) + prepadding + prepadding_bottom;
+                // preproc
+                ncnn::VkMat in_tile_gpu[8];
+                {
+                    // crop tile
+                    int tile_x0 = xi * TILE_SIZE_X;
+                    int tile_x1 = std::min((xi + 1) * TILE_SIZE_X, w) + prepadding + prepadding_right;
+                    int tile_y0 = yi * TILE_SIZE_Y;
+                    int tile_y1 = std::min((yi + 1) * TILE_SIZE_Y, h) + prepadding + prepadding_bottom;
 
-                in_tile_gpu.create(tile_x1 - tile_x0, tile_y1 - tile_y0, 3, (size_t)4u, 1, blob_vkallocator, staging_vkallocator);
+                    in_tile_gpu[0].create(tile_x1 - tile_x0, tile_y1 - tile_y0, 3, (size_t)4u, 1, blob_vkallocator, staging_vkallocator);
+                    in_tile_gpu[1].create(tile_x1 - tile_x0, tile_y1 - tile_y0, 3, (size_t)4u, 1, blob_vkallocator, staging_vkallocator);
+                    in_tile_gpu[2].create(tile_x1 - tile_x0, tile_y1 - tile_y0, 3, (size_t)4u, 1, blob_vkallocator, staging_vkallocator);
+                    in_tile_gpu[3].create(tile_x1 - tile_x0, tile_y1 - tile_y0, 3, (size_t)4u, 1, blob_vkallocator, staging_vkallocator);
+                    in_tile_gpu[4].create(tile_y1 - tile_y0, tile_x1 - tile_x0, 3, (size_t)4u, 1, blob_vkallocator, staging_vkallocator);
+                    in_tile_gpu[5].create(tile_y1 - tile_y0, tile_x1 - tile_x0, 3, (size_t)4u, 1, blob_vkallocator, staging_vkallocator);
+                    in_tile_gpu[6].create(tile_y1 - tile_y0, tile_x1 - tile_x0, 3, (size_t)4u, 1, blob_vkallocator, staging_vkallocator);
+                    in_tile_gpu[7].create(tile_y1 - tile_y0, tile_x1 - tile_x0, 3, (size_t)4u, 1, blob_vkallocator, staging_vkallocator);
 
-                std::vector<ncnn::VkMat> bindings(2);
-                bindings[0] = in_gpu;
-                bindings[1] = in_tile_gpu;
+                    std::vector<ncnn::VkMat> bindings(9);
+                    bindings[0] = in_gpu;
+                    bindings[1] = in_tile_gpu[0];
+                    bindings[2] = in_tile_gpu[1];
+                    bindings[3] = in_tile_gpu[2];
+                    bindings[4] = in_tile_gpu[3];
+                    bindings[5] = in_tile_gpu[4];
+                    bindings[6] = in_tile_gpu[5];
+                    bindings[7] = in_tile_gpu[6];
+                    bindings[8] = in_tile_gpu[7];
 
-                std::vector<ncnn::vk_constant_type> constants(9);
-                constants[0].i = in_gpu.w;
-                constants[1].i = in_gpu.h;
-                constants[2].i = in_gpu.cstep;
-                constants[3].i = in_tile_gpu.w;
-                constants[4].i = in_tile_gpu.h;
-                constants[5].i = in_tile_gpu.cstep;
-                constants[6].i = std::max(prepadding - yi * TILE_SIZE_Y, 0);
-                constants[7].i = prepadding;
-                constants[8].i = xi * TILE_SIZE_X;
+                    std::vector<ncnn::vk_constant_type> constants(9);
+                    constants[0].i = in_gpu.w;
+                    constants[1].i = in_gpu.h;
+                    constants[2].i = in_gpu.cstep;
+                    constants[3].i = in_tile_gpu[0].w;
+                    constants[4].i = in_tile_gpu[0].h;
+                    constants[5].i = in_tile_gpu[0].cstep;
+                    constants[6].i = std::max(prepadding - yi * TILE_SIZE_Y, 0);
+                    constants[7].i = prepadding;
+                    constants[8].i = xi * TILE_SIZE_X;
 
-                cmd.record_pipeline(waifu2x_preproc, bindings, constants, in_tile_gpu);
+                    cmd.record_pipeline(waifu2x_preproc, bindings, constants, in_tile_gpu[0]);
+                }
+
+                // waifu2x
+                ncnn::VkMat out_tile_gpu[8];
+                for (int ti = 0; ti < 8; ti++)
+                {
+                    ncnn::Extractor ex = net.create_extractor();
+
+                    ex.set_blob_vkallocator(blob_vkallocator);
+                    ex.set_workspace_vkallocator(blob_vkallocator);
+                    ex.set_staging_vkallocator(staging_vkallocator);
+
+                    ex.input("Input1", in_tile_gpu[ti]);
+
+                    ex.extract("Eltwise4", out_tile_gpu[ti], cmd);
+                }
+
+                // postproc
+                {
+                    std::vector<ncnn::VkMat> bindings(9);
+                    bindings[0] = out_tile_gpu[0];
+                    bindings[1] = out_tile_gpu[1];
+                    bindings[2] = out_tile_gpu[2];
+                    bindings[3] = out_tile_gpu[3];
+                    bindings[4] = out_tile_gpu[4];
+                    bindings[5] = out_tile_gpu[5];
+                    bindings[6] = out_tile_gpu[6];
+                    bindings[7] = out_tile_gpu[7];
+                    bindings[8] = out_gpu;
+
+                    std::vector<ncnn::vk_constant_type> constants(8);
+                    constants[0].i = out_tile_gpu[0].w;
+                    constants[1].i = out_tile_gpu[0].h;
+                    constants[2].i = out_tile_gpu[0].cstep;
+                    constants[3].i = out_gpu.w;
+                    constants[4].i = out_gpu.h;
+                    constants[5].i = out_gpu.cstep;
+                    constants[6].i = xi * TILE_SIZE_X * scale;
+                    constants[7].i = out_gpu.w - xi * TILE_SIZE_X * scale;
+
+                    ncnn::VkMat dispatcher;
+                    dispatcher.w = out_gpu.w - xi * TILE_SIZE_X * scale;
+                    dispatcher.h = out_gpu.h;
+                    dispatcher.c = 3;
+
+                    cmd.record_pipeline(waifu2x_postproc, bindings, constants, dispatcher);
+                }
             }
-
-            // waifu2x
-            ncnn::VkMat out_tile_gpu;
+            else
             {
-                ncnn::Extractor ex = net.create_extractor();
+                // preproc
+                ncnn::VkMat in_tile_gpu;
+                {
+                    // crop tile
+                    int tile_x0 = xi * TILE_SIZE_X;
+                    int tile_x1 = std::min((xi + 1) * TILE_SIZE_X, w) + prepadding + prepadding_right;
+                    int tile_y0 = yi * TILE_SIZE_Y;
+                    int tile_y1 = std::min((yi + 1) * TILE_SIZE_Y, h) + prepadding + prepadding_bottom;
 
-                ex.set_blob_vkallocator(blob_vkallocator);
-                ex.set_workspace_vkallocator(blob_vkallocator);
-                ex.set_staging_vkallocator(staging_vkallocator);
+                    in_tile_gpu.create(tile_x1 - tile_x0, tile_y1 - tile_y0, 3, (size_t)4u, 1, blob_vkallocator, staging_vkallocator);
 
-                ex.input("Input1", in_tile_gpu);
+                    std::vector<ncnn::VkMat> bindings(2);
+                    bindings[0] = in_gpu;
+                    bindings[1] = in_tile_gpu;
 
-                ex.extract("Eltwise4", out_tile_gpu, cmd);
-            }
+                    std::vector<ncnn::vk_constant_type> constants(9);
+                    constants[0].i = in_gpu.w;
+                    constants[1].i = in_gpu.h;
+                    constants[2].i = in_gpu.cstep;
+                    constants[3].i = in_tile_gpu.w;
+                    constants[4].i = in_tile_gpu.h;
+                    constants[5].i = in_tile_gpu.cstep;
+                    constants[6].i = std::max(prepadding - yi * TILE_SIZE_Y, 0);
+                    constants[7].i = prepadding;
+                    constants[8].i = xi * TILE_SIZE_X;
 
-            // postproc
-            {
-                std::vector<ncnn::VkMat> bindings(2);
-                bindings[0] = out_tile_gpu;
-                bindings[1] = out_gpu;
+                    cmd.record_pipeline(waifu2x_preproc, bindings, constants, in_tile_gpu);
+                }
 
-                std::vector<ncnn::vk_constant_type> constants(8);
-                constants[0].i = out_tile_gpu.w;
-                constants[1].i = out_tile_gpu.h;
-                constants[2].i = out_tile_gpu.cstep;
-                constants[3].i = out_gpu.w;
-                constants[4].i = out_gpu.h;
-                constants[5].i = out_gpu.cstep;
-                constants[6].i = xi * TILE_SIZE_X * scale;
-                constants[7].i = out_gpu.w - xi * TILE_SIZE_X * scale;
+                // waifu2x
+                ncnn::VkMat out_tile_gpu;
+                {
+                    ncnn::Extractor ex = net.create_extractor();
 
-                ncnn::VkMat dispatcher;
-                dispatcher.w = out_gpu.w - xi * TILE_SIZE_X * scale;
-                dispatcher.h = out_gpu.h;
-                dispatcher.c = 3;
+                    ex.set_blob_vkallocator(blob_vkallocator);
+                    ex.set_workspace_vkallocator(blob_vkallocator);
+                    ex.set_staging_vkallocator(staging_vkallocator);
 
-                cmd.record_pipeline(waifu2x_postproc, bindings, constants, dispatcher);
+                    ex.input("Input1", in_tile_gpu);
+
+                    ex.extract("Eltwise4", out_tile_gpu, cmd);
+                }
+
+                // postproc
+                {
+                    std::vector<ncnn::VkMat> bindings(2);
+                    bindings[0] = out_tile_gpu;
+                    bindings[1] = out_gpu;
+
+                    std::vector<ncnn::vk_constant_type> constants(8);
+                    constants[0].i = out_tile_gpu.w;
+                    constants[1].i = out_tile_gpu.h;
+                    constants[2].i = out_tile_gpu.cstep;
+                    constants[3].i = out_gpu.w;
+                    constants[4].i = out_gpu.h;
+                    constants[5].i = out_gpu.cstep;
+                    constants[6].i = xi * TILE_SIZE_X * scale;
+                    constants[7].i = out_gpu.w - xi * TILE_SIZE_X * scale;
+
+                    ncnn::VkMat dispatcher;
+                    dispatcher.w = out_gpu.w - xi * TILE_SIZE_X * scale;
+                    dispatcher.h = out_gpu.h;
+                    dispatcher.c = 3;
+
+                    cmd.record_pipeline(waifu2x_postproc, bindings, constants, dispatcher);
+                }
             }
 
             if (xtiles > 1)

@@ -76,6 +76,7 @@ static void print_usage()
     fprintf(stderr, "  -m model-path        waifu2x model path (default=models-cunet)\n");
     fprintf(stderr, "  -g gpu-id            gpu device to use (default=0)\n");
     fprintf(stderr, "  -j load:proc:save    thread count for load/proc/save (default=1:2:2)\n");
+    fprintf(stderr, "  -x                   enable tta mode\n");
 }
 
 class Task
@@ -301,10 +302,11 @@ int main(int argc, char** argv)
     int jobs_proc = 2;
     int jobs_save = 2;
     int verbose = 0;
+    int tta_mode = 0;
 
 #if _WIN32
     wchar_t opt;
-    while ((opt = getopt(argc, argv, L"i:o:n:s:t:m:g:j:vh")) != (wchar_t)-1)
+    while ((opt = getopt(argc, argv, L"i:o:n:s:t:m:g:j:vxh")) != (wchar_t)-1)
     {
         switch (opt)
         {
@@ -335,6 +337,9 @@ int main(int argc, char** argv)
         case L'v':
             verbose = 1;
             break;
+        case L'x':
+            tta_mode = 1;
+            break;
         case L'h':
         default:
             print_usage();
@@ -343,7 +348,7 @@ int main(int argc, char** argv)
     }
 #else // _WIN32
     int opt;
-    while ((opt = getopt(argc, argv, "i:o:n:s:t:m:g:j:vh")) != -1)
+    while ((opt = getopt(argc, argv, "i:o:n:s:t:m:g:j:vxh")) != -1)
     {
         switch (opt)
         {
@@ -373,6 +378,9 @@ int main(int argc, char** argv)
             break;
         case 'v':
             verbose = 1;
+            break;
+        case 'x':
+            tta_mode = 1;
             break;
         case 'h':
         default:
@@ -530,7 +538,7 @@ int main(int argc, char** argv)
     jobs_proc = std::min(jobs_proc, gpu_queue_count);
 
     {
-        Waifu2x waifu2x(gpuid);
+        Waifu2x waifu2x(gpuid, tta_mode);
 
         waifu2x.load(parampath, modelpath);
 

@@ -35,6 +35,7 @@ Usage: waifu2x-ncnn-vulkan -i infile -o outfile [options]...
   -m model-path        waifu2x model path (default=models-cunet)
   -g gpu-id            gpu device to use (default=0)
   -j load:proc:save    thread count for load/proc/save (default=1:2:2)
+  -x                   enable tta mode
 ```
 
 - `input-path` and `output-path` accept either file path or directory path

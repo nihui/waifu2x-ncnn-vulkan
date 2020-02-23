@@ -12,7 +12,7 @@
 class Waifu2x
 {
 public:
-    Waifu2x(int gpuid);
+    Waifu2x(int gpuid, bool tta_mode = false);
     ~Waifu2x();
 
 #if _WIN32
@@ -34,6 +34,7 @@ private:
     ncnn::Net net;
     ncnn::Pipeline* waifu2x_preproc;
     ncnn::Pipeline* waifu2x_postproc;
+    bool tta_mode;
 };
 
 #endif // WAIFU2X_H

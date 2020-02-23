@@ -1,0 +1,95 @@
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#define sfp float16_t
+#else
+#define sfp float
+#endif
+
+#if NCNN_int8_storage
+#extension GL_EXT_shader_8bit_storage: require
+#endif
+
+layout (constant_id = 0) const int bgr = 0;
+
+layout (local_size_x_id = 233) in;
+layout (local_size_y_id = 234) in;
+layout (local_size_z_id = 235) in;
+
+#if NCNN_int8_storage
+layout (binding = 0) readonly buffer bottom_blob { uint8_t bottom_blob_data[]; };
+#else
+layout (binding = 0) readonly buffer bottom_blob { float bottom_blob_data[]; };
+#endif
+layout (binding = 1) writeonly buffer top_blob0 { sfp top_blob0_data[]; };
+layout (binding = 2) writeonly buffer top_blob1 { sfp top_blob1_data[]; };
+layout (binding = 3) writeonly buffer top_blob2 { sfp top_blob2_data[]; };
+layout (binding = 4) writeonly buffer top_blob3 { sfp top_blob3_data[]; };
+layout (binding = 5) writeonly buffer top_blob4 { sfp top_blob4_data[]; };
+layout (binding = 6) writeonly buffer top_blob5 { sfp top_blob5_data[]; };
+layout (binding = 7) writeonly buffer top_blob6 { sfp top_blob6_data[]; };
+layout (binding = 8) writeonly buffer top_blob7 { sfp top_blob7_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int w;
+    int h;
+    int cstep;
+
+    int outw;
+    int outh;
+    int outcstep;
+
+    int pad_top;
+    int pad_left;
+
+    int crop_x;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= p.outw || gy >= p.outh || gz >= 3)
+        return;
+
+    int x = gx + p.crop_x - p.pad_left;
+    int y = gy - p.pad_top;
+
+    x = clamp(x, 0, p.w - 1);
+    y = clamp(y, 0, p.h - 1);
+
+#if NCNN_int8_storage
+    int v_offset = y * p.w + x;
+
+    float v;
+
+    if (bgr == 1)
+        v = float(uint(bottom_blob_data[v_offset * 3 + 2 - gz]));
+    else
+        v = float(uint(bottom_blob_data[v_offset * 3 + gz]));
+#else
+    int v_offset = gz * p.cstep + y * p.w + x;
+
+    float v = bottom_blob_data[v_offset];
+#endif
+
+    const float norm_val = 1 / 255.f;
+
+    v = v * norm_val;
+
+    int gzi = gz * p.outcstep;
+
+    top_blob0_data[gzi + gy * p.outw + gx] = sfp(v);
+    top_blob1_data[gzi + gy * p.outw + (p.outw - 1 - gx)] = sfp(v);
+    top_blob2_data[gzi + (p.outh - 1 - gy) * p.outw + (p.outw - 1 - gx)] = sfp(v);
+    top_blob3_data[gzi + (p.outh - 1 - gy) * p.outw + gx] = sfp(v);
+    top_blob4_data[gzi + gx * p.outh + gy] = sfp(v);
+    top_blob5_data[gzi + gx * p.outh + (p.outh - 1 - gy)] = sfp(v);
+    top_blob6_data[gzi + (p.outw - 1 - gx) * p.outh + (p.outh - 1 - gy)] = sfp(v);
+    top_blob7_data[gzi + (p.outw - 1 - gx) * p.outh + gy] = sfp(v);
+}

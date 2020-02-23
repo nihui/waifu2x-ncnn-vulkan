@@ -72,6 +72,8 @@ set(SHADER_SPV_HEX_FILES)
 
 compile_shader(waifu2x_preproc.comp)
 compile_shader(waifu2x_postproc.comp)
+compile_shader(waifu2x_preproc_tta.comp)
+compile_shader(waifu2x_postproc_tta.comp)
 
 add_custom_target(generate-spirv DEPENDS ${SHADER_SPV_HEX_FILES})
 

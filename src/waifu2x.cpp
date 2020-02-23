@@ -188,7 +188,7 @@ int Waifu2x::process(const ncnn::Mat& inimage, ncnn::Mat& outimage) const
     for (int yi = 0; yi < ytiles; yi++)
     {
         int in_tile_y0 = std::max(yi * TILE_SIZE_Y - prepadding, 0);
-        int in_tile_y1 = std::min((yi + 1) * TILE_SIZE_Y + prepadding_bottom, h);
+        int in_tile_y1 = std::min((yi + 1) * TILE_SIZE_Y + (yi == ytiles - 1 ? prepadding_bottom : prepadding), h);
 
         ncnn::Mat in;
         if (net.opt.use_fp16_storage && net.opt.use_int8_storage)

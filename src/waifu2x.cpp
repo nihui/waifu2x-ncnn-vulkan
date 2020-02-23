@@ -245,9 +245,9 @@ int Waifu2x::process(const ncnn::Mat& inimage, ncnn::Mat& outimage) const
                 {
                     // crop tile
                     int tile_x0 = xi * TILE_SIZE_X;
-                    int tile_x1 = std::min((xi + 1) * TILE_SIZE_X, w) + prepadding + prepadding_right;
+                    int tile_x1 = std::min((xi + 1) * TILE_SIZE_X, w) + prepadding + (xi == xtiles - 1 ? prepadding_right : prepadding);
                     int tile_y0 = yi * TILE_SIZE_Y;
-                    int tile_y1 = std::min((yi + 1) * TILE_SIZE_Y, h) + prepadding + prepadding_bottom;
+                    int tile_y1 = std::min((yi + 1) * TILE_SIZE_Y, h) + prepadding + (yi == ytiles - 1 ? prepadding_bottom : prepadding);
 
                     in_tile_gpu[0].create(tile_x1 - tile_x0, tile_y1 - tile_y0, 3, (size_t)4u, 1, blob_vkallocator, staging_vkallocator);
                     in_tile_gpu[1].create(tile_x1 - tile_x0, tile_y1 - tile_y0, 3, (size_t)4u, 1, blob_vkallocator, staging_vkallocator);
@@ -336,9 +336,9 @@ int Waifu2x::process(const ncnn::Mat& inimage, ncnn::Mat& outimage) const
                 {
                     // crop tile
                     int tile_x0 = xi * TILE_SIZE_X;
-                    int tile_x1 = std::min((xi + 1) * TILE_SIZE_X, w) + prepadding + prepadding_right;
+                    int tile_x1 = std::min((xi + 1) * TILE_SIZE_X, w) + prepadding + (xi == xtiles - 1 ? prepadding_right : prepadding);
                     int tile_y0 = yi * TILE_SIZE_Y;
-                    int tile_y1 = std::min((yi + 1) * TILE_SIZE_Y, h) + prepadding + prepadding_bottom;
+                    int tile_y1 = std::min((yi + 1) * TILE_SIZE_Y, h) + prepadding + (yi == ytiles - 1 ? prepadding_bottom : prepadding);
 
                     in_tile_gpu.create(tile_x1 - tile_x0, tile_y1 - tile_y0, 3, (size_t)4u, 1, blob_vkallocator, staging_vkallocator);
 

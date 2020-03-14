@@ -8,6 +8,7 @@
 #if _WIN32
 // image decoder and encoder with wic
 #include "wic_image.h"
+#include <locale>
 #else // _WIN32
 // image decoder and encoder with stb
 #define STB_IMAGE_IMPLEMENTATION
@@ -49,6 +50,15 @@ static wchar_t getopt(int argc, wchar_t* const argv[], const wchar_t* optstring)
     optind++;
 
     return opt;
+}
+const wchar_t * winpathmodel(const wchar_t * path)
+{
+    wchar_t bufpath[MAX_PATH]{};
+    GetModuleFileNameW(NULL, bufpath, MAX_PATH);
+    std::wstring pathreplace = bufpath;
+    pathreplace.erase(pathreplace.find_last_of(L"\\") + 1, std::wstring::npos);
+    pathreplace.append(path);
+    return pathreplace.c_str();
 }
 #else // _WIN32
 #include <unistd.h> // getopt()
@@ -483,18 +493,18 @@ int main(int argc, char** argv)
     wchar_t modelpath[256];
     if (noise == -1)
     {
-        swprintf(parampath, 256, L"%s/scale2.0x_model.param", model.c_str());
-        swprintf(modelpath, 256, L"%s/scale2.0x_model.bin", model.c_str());
+        swprintf(parampath, 256, L"%s\\scale2.0x_model.param", model.c_str());
+        swprintf(modelpath, 256, L"%s\\scale2.0x_model.bin", model.c_str());
     }
     else if (scale == 1)
     {
-        swprintf(parampath, 256, L"%s/noise%d_model.param", model.c_str(), noise);
-        swprintf(modelpath, 256, L"%s/noise%d_model.bin", model.c_str(), noise);
+        swprintf(parampath, 256, L"%s\\noise%d_model.param", model.c_str(), noise);
+        swprintf(modelpath, 256, L"%s\\noise%d_model.bin", model.c_str(), noise);
     }
     else if (scale == 2)
     {
-        swprintf(parampath, 256, L"%s/noise%d_scale2.0x_model.param", model.c_str(), noise);
-        swprintf(modelpath, 256, L"%s/noise%d_scale2.0x_model.bin", model.c_str(), noise);
+        swprintf(parampath, 256, L"%s\\noise%d_scale2.0x_model.param", model.c_str(), noise);
+        swprintf(modelpath, 256, L"%s\\noise%d_scale2.0x_model.bin", model.c_str(), noise);
     }
 #else
     char parampath[256];
@@ -541,7 +551,11 @@ int main(int argc, char** argv)
     {
         Waifu2x waifu2x(gpuid, tta_mode);
 
+#if _WIN32
+        waifu2x.load(winpathmodel(parampath), winpathmodel(modelpath));
+#else
         waifu2x.load(parampath, modelpath);
+#endif
 
         waifu2x.noise = noise;
         waifu2x.scale = scale;

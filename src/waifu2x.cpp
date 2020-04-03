@@ -120,34 +120,34 @@ int Waifu2x::load(const std::string& parampath, const std::string& modelpath)
         if (tta_mode)
         {
             if (net.opt.use_fp16_storage && net.opt.use_int8_storage)
-                waifu2x_preproc->create(waifu2x_preproc_tta_int8s_spv_data, sizeof(waifu2x_preproc_tta_int8s_spv_data), "waifu2x_preproc_tta_int8s", specializations, 9, 9);
+                waifu2x_preproc->create(waifu2x_preproc_tta_int8s_spv_data, sizeof(waifu2x_preproc_tta_int8s_spv_data), specializations);
             else if (net.opt.use_fp16_storage)
-                waifu2x_preproc->create(waifu2x_preproc_tta_fp16s_spv_data, sizeof(waifu2x_preproc_tta_fp16s_spv_data), "waifu2x_preproc_tta_fp16s", specializations, 9, 9);
+                waifu2x_preproc->create(waifu2x_preproc_tta_fp16s_spv_data, sizeof(waifu2x_preproc_tta_fp16s_spv_data), specializations);
             else
-                waifu2x_preproc->create(waifu2x_preproc_tta_spv_data, sizeof(waifu2x_preproc_tta_spv_data), "waifu2x_preproc_tta", specializations, 9, 9);
+                waifu2x_preproc->create(waifu2x_preproc_tta_spv_data, sizeof(waifu2x_preproc_tta_spv_data), specializations);
 
             if (net.opt.use_fp16_storage && net.opt.use_int8_storage)
-                waifu2x_postproc->create(waifu2x_postproc_tta_int8s_spv_data, sizeof(waifu2x_postproc_tta_int8s_spv_data), "waifu2x_postproc_tta_int8s", specializations, 9, 8);
+                waifu2x_postproc->create(waifu2x_postproc_tta_int8s_spv_data, sizeof(waifu2x_postproc_tta_int8s_spv_data), specializations);
             else if (net.opt.use_fp16_storage)
-                waifu2x_postproc->create(waifu2x_postproc_tta_fp16s_spv_data, sizeof(waifu2x_postproc_tta_fp16s_spv_data), "waifu2x_postproc_tta_fp16s", specializations, 9, 8);
+                waifu2x_postproc->create(waifu2x_postproc_tta_fp16s_spv_data, sizeof(waifu2x_postproc_tta_fp16s_spv_data), specializations);
             else
-                waifu2x_postproc->create(waifu2x_postproc_tta_spv_data, sizeof(waifu2x_postproc_tta_spv_data), "waifu2x_postproc_tta", specializations, 9, 8);
+                waifu2x_postproc->create(waifu2x_postproc_tta_spv_data, sizeof(waifu2x_postproc_tta_spv_data), specializations);
         }
         else
         {
             if (net.opt.use_fp16_storage && net.opt.use_int8_storage)
-                waifu2x_preproc->create(waifu2x_preproc_int8s_spv_data, sizeof(waifu2x_preproc_int8s_spv_data), "waifu2x_preproc_int8s", specializations, 2, 9);
+                waifu2x_preproc->create(waifu2x_preproc_int8s_spv_data, sizeof(waifu2x_preproc_int8s_spv_data), specializations);
             else if (net.opt.use_fp16_storage)
-                waifu2x_preproc->create(waifu2x_preproc_fp16s_spv_data, sizeof(waifu2x_preproc_fp16s_spv_data), "waifu2x_preproc_fp16s", specializations, 2, 9);
+                waifu2x_preproc->create(waifu2x_preproc_fp16s_spv_data, sizeof(waifu2x_preproc_fp16s_spv_data), specializations);
             else
-                waifu2x_preproc->create(waifu2x_preproc_spv_data, sizeof(waifu2x_preproc_spv_data), "waifu2x_preproc", specializations, 2, 9);
+                waifu2x_preproc->create(waifu2x_preproc_spv_data, sizeof(waifu2x_preproc_spv_data), specializations);
 
             if (net.opt.use_fp16_storage && net.opt.use_int8_storage)
-                waifu2x_postproc->create(waifu2x_postproc_int8s_spv_data, sizeof(waifu2x_postproc_int8s_spv_data), "waifu2x_postproc_int8s", specializations, 2, 8);
+                waifu2x_postproc->create(waifu2x_postproc_int8s_spv_data, sizeof(waifu2x_postproc_int8s_spv_data), specializations);
             else if (net.opt.use_fp16_storage)
-                waifu2x_postproc->create(waifu2x_postproc_fp16s_spv_data, sizeof(waifu2x_postproc_fp16s_spv_data), "waifu2x_postproc_fp16s", specializations, 2, 8);
+                waifu2x_postproc->create(waifu2x_postproc_fp16s_spv_data, sizeof(waifu2x_postproc_fp16s_spv_data), specializations);
             else
-                waifu2x_postproc->create(waifu2x_postproc_spv_data, sizeof(waifu2x_postproc_spv_data), "waifu2x_postproc", specializations, 2, 8);
+                waifu2x_postproc->create(waifu2x_postproc_spv_data, sizeof(waifu2x_postproc_spv_data), specializations);
         }
     }
 

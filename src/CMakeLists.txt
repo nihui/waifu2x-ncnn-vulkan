@@ -18,7 +18,7 @@ macro(compile_shader SHADER_SRC)
     add_custom_command(
         OUTPUT ${SHADER_SPV_HEX_FILE}
         COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
-        ARGS -V -s -e ${SHADER_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_SPV_HEX_FILE} ${SHADER_SRC_FULLPATH}
+        ARGS -V -s -x -o ${SHADER_SPV_HEX_FILE} ${SHADER_SRC_FULLPATH}
         DEPENDS ${SHADER_SRC_FULLPATH}
         COMMENT "Building SPIR-V module ${SHADER_SRC_NAME_WE}.spv"
         VERBATIM
@@ -33,7 +33,7 @@ macro(compile_shader SHADER_SRC)
     add_custom_command(
         OUTPUT ${SHADER_fp16s_SPV_HEX_FILE}
         COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
-        ARGS -DNCNN_fp16_storage=1 -V -s -e ${SHADER_fp16s_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16s_SPV_HEX_FILE} ${SHADER_SRC_FULLPATH}
+        ARGS -DNCNN_fp16_storage=1 -V -s -x -o ${SHADER_fp16s_SPV_HEX_FILE} ${SHADER_SRC_FULLPATH}
         DEPENDS ${SHADER_SRC_FULLPATH}
         COMMENT "Building SPIR-V module ${SHADER_fp16s_SRC_NAME_WE}.spv"
         VERBATIM
@@ -48,7 +48,7 @@ macro(compile_shader SHADER_SRC)
     add_custom_command(
         OUTPUT ${SHADER_int8s_SPV_HEX_FILE}
         COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
-        ARGS -DNCNN_fp16_storage=1 -DNCNN_int8_storage=1 -V -s -e ${SHADER_int8s_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_int8s_SPV_HEX_FILE} ${SHADER_SRC_FULLPATH}
+        ARGS -DNCNN_fp16_storage=1 -DNCNN_int8_storage=1 -V -s -x -o ${SHADER_int8s_SPV_HEX_FILE} ${SHADER_SRC_FULLPATH}
         DEPENDS ${SHADER_SRC_FULLPATH}
         COMMENT "Building SPIR-V module ${SHADER_int8s_SRC_NAME_WE}.spv"
         VERBATIM

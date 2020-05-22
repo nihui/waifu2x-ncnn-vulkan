@@ -398,7 +398,19 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    if (noise < -1 || noise > 3 || scale < 1 || scale > 2 || (noise == -1 && scale == 1))
+    if (noise < -1 || noise > 3)
+    {
+        fprintf(stderr, "invalid noise argument\n");
+        return -1;
+    }
+
+    if (scale < 1 || scale > 2)
+    {
+        fprintf(stderr, "invalid scale argument\n");
+        return -1;
+    }
+
+    if ((noise == -1 && scale == 1))
     {
         fprintf(stderr, "invalid noise or scale argument\n");
         return -1;

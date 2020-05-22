@@ -50,6 +50,38 @@ If you encounter crash or error, try to upgrade your GPU driver
 - AMD: https://www.amd.com/en/support
 - NVIDIA: https://www.nvidia.com/Download/index.aspx
 
+## Build from Source
+
+1. Download and setup the Vulkan SDK from https://vulkan.lunarg.com/
+  - For Linux distributions, you can either get the essential build requirements from package manager
+```shell
+dnf install vulkan-headers vulkan-loader-devel
+```
+```shell
+apt-get install libvulkan-dev
+```
+```shell
+pacman -S vulkan-headers vulkan-icd-loader
+```
+
+2. Clone this project with all submodules
+
+```shell
+git clone https://github.com/nihui/waifu2x-ncnn-vulkan.git
+cd waifu2x-ncnn-vulkan
+git submodule update --init --recursive
+```
+
+3. Build with CMake
+  - You can pass -DUSE_STATIC_MOLTENVK=ON option to avoid linking the vulkan loader library on MacOS
+
+```shell
+mkdir build
+cd build
+cmake ../src
+cmake --build . -j 4
+```
+
 ## Speed Comparison with waifu2x-caffe-cui
 
 ### Environment
@@ -134,11 +166,8 @@ waifu2x-ncnn-vulkan.exe -i origin.jpg -o output.png -n 2 -s 2
 - https://github.com/nagadomi/waifu2x
 - https://github.com/lltcggie/waifu2x-caffe
 
-## ncnn Project (>=20190712)
-
-- https://github.com/Tencent/ncnn/tree/8c537069875a28d5380c6bdcbf7964d73803b7b3
-
 ## Other Open-Source Code Used
 
+- https://github.com/Tencent/ncnn for fast neural network inference on ALL PLATFORMS
 - https://github.com/nothings/stb for decoding and encoding image on Linux / MacOS
 - https://github.com/tronkko/dirent for listing files in directory on Windows

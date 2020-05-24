@@ -31,6 +31,7 @@ layout (binding = 5) writeonly buffer top_blob4 { sfp top_blob4_data[]; };
 layout (binding = 6) writeonly buffer top_blob5 { sfp top_blob5_data[]; };
 layout (binding = 7) writeonly buffer top_blob6 { sfp top_blob6_data[]; };
 layout (binding = 8) writeonly buffer top_blob7 { sfp top_blob7_data[]; };
+layout (binding = 9) writeonly buffer alpha_blob { sfp alpha_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -46,6 +47,11 @@ layout (push_constant) uniform parameter
     int pad_left;
 
     int crop_x;
+
+    int channels;
+
+    int alphaw;
+    int alphah;
 } p;
 
 void main()
@@ -54,7 +60,7 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= p.outh || gz >= 3)
+    if (gx >= p.outw || gy >= p.outh || gz >= p.channels)
         return;
 
     int x = gx + p.crop_x - p.pad_left;
@@ -68,28 +74,41 @@ void main()
 
     float v;
 
-    if (bgr == 1)
-        v = float(uint(bottom_blob_data[v_offset * 3 + 2 - gz]));
+    if (bgr == 1 && gz != 3)
+        v = float(uint(bottom_blob_data[v_offset * p.channels + 2 - gz]));
     else
-        v = float(uint(bottom_blob_data[v_offset * 3 + gz]));
+        v = float(uint(bottom_blob_data[v_offset * p.channels + gz]));
 #else
     int v_offset = gz * p.cstep + y * p.w + x;
 
     float v = bottom_blob_data[v_offset];
 #endif
 
-    const float norm_val = 1 / 255.f;
+    if (gz == 3)
+    {
+        gx -= p.pad_left;
+        gy -= p.pad_top;
 
-    v = v * norm_val;
+        if (gx >= 0 && gx < p.alphaw && gy >= 0 && gy < p.alphah)
+        {
+            alpha_blob_data[gy * p.alphaw + gx] = sfp(v);
+        }
+    }
+    else
+    {
+        const float norm_val = 1 / 255.f;
 
-    int gzi = gz * p.outcstep;
+        v = v * norm_val;
 
-    top_blob0_data[gzi + gy * p.outw + gx] = sfp(v);
-    top_blob1_data[gzi + gy * p.outw + (p.outw - 1 - gx)] = sfp(v);
-    top_blob2_data[gzi + (p.outh - 1 - gy) * p.outw + (p.outw - 1 - gx)] = sfp(v);
-    top_blob3_data[gzi + (p.outh - 1 - gy) * p.outw + gx] = sfp(v);
-    top_blob4_data[gzi + gx * p.outh + gy] = sfp(v);
-    top_blob5_data[gzi + gx * p.outh + (p.outh - 1 - gy)] = sfp(v);
-    top_blob6_data[gzi + (p.outw - 1 - gx) * p.outh + (p.outh - 1 - gy)] = sfp(v);
-    top_blob7_data[gzi + (p.outw - 1 - gx) * p.outh + gy] = sfp(v);
+        int gzi = gz * p.outcstep;
+
+        top_blob0_data[gzi + gy * p.outw + gx] = sfp(v);
+        top_blob1_data[gzi + gy * p.outw + (p.outw - 1 - gx)] = sfp(v);
+        top_blob2_data[gzi + (p.outh - 1 - gy) * p.outw + (p.outw - 1 - gx)] = sfp(v);
+        top_blob3_data[gzi + (p.outh - 1 - gy) * p.outw + gx] = sfp(v);
+        top_blob4_data[gzi + gx * p.outh + gy] = sfp(v);
+        top_blob5_data[gzi + gx * p.outh + (p.outh - 1 - gy)] = sfp(v);
+        top_blob6_data[gzi + (p.outw - 1 - gx) * p.outh + (p.outh - 1 - gy)] = sfp(v);
+        top_blob7_data[gzi + (p.outw - 1 - gx) * p.outh + gy] = sfp(v);
+    }
 }

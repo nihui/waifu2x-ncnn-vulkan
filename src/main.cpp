@@ -171,7 +171,23 @@ void* load(void* args)
 #if _WIN32
         pixeldata = wic_decode_image(imagepath.c_str(), &w, &h, &c);
 #else // _WIN32
-        pixeldata = stbi_load(imagepath.c_str(), &w, &h, &c, 3);
+        pixeldata = stbi_load(imagepath.c_str(), &w, &h, &c, 0);
+        if (pixeldata)
+        {
+            // stb_image auto channel
+            if (c == 1)
+            {
+                // grayscale -> rgb
+                stbi_image_free(pixeldata);
+                pixeldata = stbi_load(imagepath.c_str(), &w, &h, &c, 3);
+            }
+            else if (c == 2)
+            {
+                // grayscale + alpha -> rgba
+                stbi_image_free(pixeldata);
+                pixeldata = stbi_load(imagepath.c_str(), &w, &h, &c, 4);
+            }
+        }
 #endif // _WIN32
         if (pixeldata)
         {
@@ -180,8 +196,8 @@ void* load(void* args)
             v.inpath = imagepath;
             v.outpath = ltp->output_files[i];
 
-            v.inimage = ncnn::Mat(w, h, (void*)pixeldata, (size_t)3, 3);
-            v.outimage = ncnn::Mat(w * scale, h * scale, (size_t)3u, 3);
+            v.inimage = ncnn::Mat(w, h, (void*)pixeldata, (size_t)c, c);
+            v.outimage = ncnn::Mat(w * scale, h * scale, (size_t)c, c);
 
             toproc.put(v);
         }
@@ -259,7 +275,7 @@ void* save(void* args)
 #if _WIN32
         int success = wic_encode_image(v.outpath.c_str(), v.outimage.w, v.outimage.h, 3, v.outimage.data);
 #else
-        int success = stbi_write_png(v.outpath.c_str(), v.outimage.w, v.outimage.h, 3, v.outimage.data, 0);
+        int success = stbi_write_png(v.outpath.c_str(), v.outimage.w, v.outimage.h, v.outimage.elempack, v.outimage.data, 0);
 #endif
         if (success)
         {

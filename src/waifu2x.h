@@ -8,6 +8,7 @@
 // ncnn
 #include "net.h"
 #include "gpu.h"
+#include "layer.h"
 
 class Waifu2x
 {
@@ -34,6 +35,7 @@ private:
     ncnn::Net net;
     ncnn::Pipeline* waifu2x_preproc;
     ncnn::Pipeline* waifu2x_postproc;
+    ncnn::Layer* bicubic_2x;
     bool tta_mode;
 };
 

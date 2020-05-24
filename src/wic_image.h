@@ -9,11 +9,13 @@ unsigned char* wic_decode_image(const wchar_t* filepath, int* w, int* h, int* c)
     IWICImagingFactory* factory = 0;
     IWICBitmapDecoder* decoder = 0;
     IWICBitmapFrameDecode* frame = 0;
+    WICPixelFormatGUID pixel_format;
     IWICFormatConverter* converter = 0;
     IWICBitmap* bitmap = 0;
     IWICBitmapLock* lock = 0;
     int width = 0;
     int height = 0;
+    int channels = 0;
     WICRect rect = { 0, 0, 0, 0 };
     unsigned int datasize = 0;
     unsigned char* data = 0;
@@ -32,7 +34,15 @@ unsigned char* wic_decode_image(const wchar_t* filepath, int* w, int* h, int* c)
     if (factory->CreateFormatConverter(&converter))
         goto RETURN;
 
-    if (converter->Initialize(frame, GUID_WICPixelFormat24bppBGR, WICBitmapDitherTypeNone, 0, 0.0, WICBitmapPaletteTypeCustom))
+    if (frame->GetPixelFormat(&pixel_format))
+        goto RETURN;
+
+    if (!IsEqualGUID(pixel_format, GUID_WICPixelFormat32bppBGRA))
+        pixel_format = GUID_WICPixelFormat24bppBGR;
+
+    channels = IsEqualGUID(pixel_format, GUID_WICPixelFormat32bppBGRA) ? 4 : 3;
+
+    if (converter->Initialize(frame, pixel_format, WICBitmapDitherTypeNone, 0, 0.0, WICBitmapPaletteTypeCustom))
         goto RETURN;
 
     if (factory->CreateBitmapFromSource(converter, WICBitmapCacheOnDemand, &bitmap))
@@ -52,21 +62,22 @@ unsigned char* wic_decode_image(const wchar_t* filepath, int* w, int* h, int* c)
     if (lock->GetStride((UINT*)&stride))
         goto RETURN;
 
-    bgrdata = (unsigned char*)malloc(width * height * 3);
+    bgrdata = (unsigned char*)malloc(width * height * channels);
     if (!bgrdata)
         goto RETURN;
 
     for (int y = 0; y < height; y++)
     {
         const unsigned char* ptr = data + y * stride;
-        unsigned char* bgrptr = bgrdata + y * width * 3;
-        memcpy(bgrptr, ptr, width * 3);
+        unsigned char* bgrptr = bgrdata + y * width * channels;
+        memcpy(bgrptr, ptr, width * channels);
     }
 
     *w = width;
     *h = height;
-    *c = 3;
+    *c = channels;
 
+    fprintf(stderr, "decode %d %d %d\n", *w, *h, *c);
 RETURN:
     if (lock) lock->Release();
     if (bitmap) bitmap->Release();
@@ -80,12 +91,13 @@ RETURN:
 
 int wic_encode_image(const wchar_t* filepath, int w, int h, int c, void* bgrdata)
 {
+    fprintf(stderr, "encode %d %d %d\n", w, h, c);
     IWICImagingFactory* factory = 0;
     IWICStream* stream = 0;
     IWICBitmapEncoder* encoder = 0;
     IWICBitmapFrameEncode* frame = 0;
-    WICPixelFormatGUID format = GUID_WICPixelFormat24bppBGR;
-    int stride = (w * 24 + 7) / 8;
+    WICPixelFormatGUID format = c == 4 ? GUID_WICPixelFormat32bppBGRA : GUID_WICPixelFormat24bppBGR;
+    int stride = (w * c * 8 + 7) / 8;
     unsigned char* data = 0;
     int ret = 0;
 
@@ -116,7 +128,7 @@ int wic_encode_image(const wchar_t* filepath, int w, int h, int c, void* bgrdata
     if (frame->SetPixelFormat(&format))
         goto RETURN;
 
-    if (!IsEqualGUID(format, GUID_WICPixelFormat24bppBGR))
+    if (!IsEqualGUID(format, c == 4 ? GUID_WICPixelFormat32bppBGRA : GUID_WICPixelFormat24bppBGR))
         goto RETURN;
 
     data = (unsigned char*)malloc(h * stride);
@@ -125,9 +137,9 @@ int wic_encode_image(const wchar_t* filepath, int w, int h, int c, void* bgrdata
 
     for (int y = 0; y < h; y++)
     {
-        const unsigned char* bgrptr = (const unsigned char*)bgrdata + y * w * 3;
+        const unsigned char* bgrptr = (const unsigned char*)bgrdata + y * w * c;
         unsigned char* ptr = data + y * stride;
-        memcpy(ptr, bgrptr, w * 3);
+        memcpy(ptr, bgrptr, w * c);
     }
 
     if (frame->WritePixels(h, stride, h * stride, data))

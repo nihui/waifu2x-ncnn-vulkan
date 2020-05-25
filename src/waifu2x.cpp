@@ -190,20 +190,6 @@ int Waifu2x::process(const ncnn::Mat& inimage, ncnn::Mat& outimage) const
     opt.workspace_vkallocator = blob_vkallocator;
     opt.staging_vkallocator = staging_vkallocator;
 
-    // prepadding
-    int prepadding_bottom = prepadding;
-    int prepadding_right = prepadding;
-    if (scale == 1)
-    {
-        prepadding_bottom += (h + 3) / 4 * 4 - h;
-        prepadding_right += (w + 3) / 4 * 4 - w;
-    }
-    if (scale == 2)
-    {
-        prepadding_bottom += (h + 1) / 2 * 2 - h;
-        prepadding_right += (w + 1) / 2 * 2 - w;
-    }
-
     // each tile 400x400
     const int xtiles = (w + TILE_SIZE_X - 1) / TILE_SIZE_X;
     const int ytiles = (h + TILE_SIZE_Y - 1) / TILE_SIZE_Y;
@@ -213,8 +199,20 @@ int Waifu2x::process(const ncnn::Mat& inimage, ncnn::Mat& outimage) const
     //#pragma omp parallel for num_threads(2)
     for (int yi = 0; yi < ytiles; yi++)
     {
+        const int tile_h_nopad = std::min((yi + 1) * TILE_SIZE_Y, h) - yi * TILE_SIZE_Y;
+
+        int prepadding_bottom = prepadding;
+        if (scale == 1)
+        {
+            prepadding_bottom += (tile_h_nopad + 3) / 4 * 4 - tile_h_nopad;
+        }
+        if (scale == 2)
+        {
+            prepadding_bottom += (tile_h_nopad + 1) / 2 * 2 - tile_h_nopad;
+        }
+
         int in_tile_y0 = std::max(yi * TILE_SIZE_Y - prepadding, 0);
-        int in_tile_y1 = std::min((yi + 1) * TILE_SIZE_Y + (yi == ytiles - 1 ? prepadding_bottom : prepadding), h);
+        int in_tile_y1 = std::min((yi + 1) * TILE_SIZE_Y + prepadding_bottom, h);
 
         ncnn::Mat in;
         if (opt.use_fp16_storage && opt.use_int8_storage)
@@ -270,6 +268,18 @@ int Waifu2x::process(const ncnn::Mat& inimage, ncnn::Mat& outimage) const
 
         for (int xi = 0; xi < xtiles; xi++)
         {
+            const int tile_w_nopad = std::min((xi + 1) * TILE_SIZE_X, w) - xi * TILE_SIZE_X;
+
+            int prepadding_right = prepadding;
+            if (scale == 1)
+            {
+                prepadding_right += (tile_w_nopad + 3) / 4 * 4 - tile_w_nopad;
+            }
+            if (scale == 2)
+            {
+                prepadding_right += (tile_w_nopad + 1) / 2 * 2 - tile_w_nopad;
+            }
+
             if (tta_mode)
             {
                 // preproc
@@ -278,9 +288,9 @@ int Waifu2x::process(const ncnn::Mat& inimage, ncnn::Mat& outimage) const
                 {
                     // crop tile
                     int tile_x0 = xi * TILE_SIZE_X - prepadding;
-                    int tile_x1 = std::min((xi + 1) * TILE_SIZE_X, w) + (xi == xtiles - 1 ? prepadding_right : prepadding);
+                    int tile_x1 = std::min((xi + 1) * TILE_SIZE_X, w) + prepadding_right;
                     int tile_y0 = yi * TILE_SIZE_Y - prepadding;
-                    int tile_y1 = std::min((yi + 1) * TILE_SIZE_Y, h) + (yi == ytiles - 1 ? prepadding_bottom : prepadding);
+                    int tile_y1 = std::min((yi + 1) * TILE_SIZE_Y, h) + prepadding_bottom;
 
                     in_tile_gpu[0].create(tile_x1 - tile_x0, tile_y1 - tile_y0, 3, in_out_tile_elemsize, 1, blob_vkallocator);
                     in_tile_gpu[1].create(tile_x1 - tile_x0, tile_y1 - tile_y0, 3, in_out_tile_elemsize, 1, blob_vkallocator);
@@ -293,12 +303,7 @@ int Waifu2x::process(const ncnn::Mat& inimage, ncnn::Mat& outimage) const
 
                     if (channels == 4)
                     {
-                        int alpha_tile_x0 = xi * TILE_SIZE_X;
-                        int alpha_tile_x1 = std::min((xi + 1) * TILE_SIZE_X, w);
-                        int alpha_tile_y0 = yi * TILE_SIZE_Y;
-                        int alpha_tile_y1 = std::min((yi + 1) * TILE_SIZE_Y, h);
-
-                        in_alpha_tile_gpu.create(alpha_tile_x1 - alpha_tile_x0, alpha_tile_y1 - alpha_tile_y0, 1, in_out_tile_elemsize, 1, blob_vkallocator);
+                        in_alpha_tile_gpu.create(tile_w_nopad, tile_h_nopad, 1, in_out_tile_elemsize, 1, blob_vkallocator);
                     }
 
                     std::vector<ncnn::VkMat> bindings(10);
@@ -378,7 +383,7 @@ int Waifu2x::process(const ncnn::Mat& inimage, ncnn::Mat& outimage) const
                     bindings[8] = out_alpha_tile_gpu;
                     bindings[9] = out_gpu;
 
-                    std::vector<ncnn::vk_constant_type> constants(9);
+                    std::vector<ncnn::vk_constant_type> constants(11);
                     constants[0].i = out_tile_gpu[0].w;
                     constants[1].i = out_tile_gpu[0].h;
                     constants[2].i = out_tile_gpu[0].cstep;
@@ -386,11 +391,13 @@ int Waifu2x::process(const ncnn::Mat& inimage, ncnn::Mat& outimage) const
                     constants[4].i = out_gpu.h;
                     constants[5].i = out_gpu.cstep;
                     constants[6].i = xi * TILE_SIZE_X * scale;
-                    constants[7].i = out_gpu.w - xi * TILE_SIZE_X * scale;
+                    constants[7].i = std::min(TILE_SIZE_X * scale, out_gpu.w - xi * TILE_SIZE_X * scale);
                     constants[8].i = channels;
+                    constants[9].i = out_alpha_tile_gpu.w;
+                    constants[10].i = out_alpha_tile_gpu.h;
 
                     ncnn::VkMat dispatcher;
-                    dispatcher.w = out_gpu.w - xi * TILE_SIZE_X * scale;
+                    dispatcher.w = std::min(TILE_SIZE_X * scale, out_gpu.w - xi * TILE_SIZE_X * scale);
                     dispatcher.h = out_gpu.h;
                     dispatcher.c = channels;
 
@@ -405,20 +412,15 @@ int Waifu2x::process(const ncnn::Mat& inimage, ncnn::Mat& outimage) const
                 {
                     // crop tile
                     int tile_x0 = xi * TILE_SIZE_X - prepadding;
-                    int tile_x1 = std::min((xi + 1) * TILE_SIZE_X, w) + (xi == xtiles - 1 ? prepadding_right : prepadding);
+                    int tile_x1 = std::min((xi + 1) * TILE_SIZE_X, w) + prepadding_right;
                     int tile_y0 = yi * TILE_SIZE_Y - prepadding;
-                    int tile_y1 = std::min((yi + 1) * TILE_SIZE_Y, h) + (yi == ytiles - 1 ? prepadding_bottom : prepadding);
+                    int tile_y1 = std::min((yi + 1) * TILE_SIZE_Y, h) + prepadding_bottom;
 
                     in_tile_gpu.create(tile_x1 - tile_x0, tile_y1 - tile_y0, 3, in_out_tile_elemsize, 1, blob_vkallocator);
 
                     if (channels == 4)
                     {
-                        int alpha_tile_x0 = xi * TILE_SIZE_X;
-                        int alpha_tile_x1 = std::min((xi + 1) * TILE_SIZE_X, w);
-                        int alpha_tile_y0 = yi * TILE_SIZE_Y;
-                        int alpha_tile_y1 = std::min((yi + 1) * TILE_SIZE_Y, h);
-
-                        in_alpha_tile_gpu.create(alpha_tile_x1 - alpha_tile_x0, alpha_tile_y1 - alpha_tile_y0, 1, in_out_tile_elemsize, 1, blob_vkallocator);
+                        in_alpha_tile_gpu.create(tile_w_nopad, tile_h_nopad, 1, in_out_tile_elemsize, 1, blob_vkallocator);
                     }
 
                     std::vector<ncnn::VkMat> bindings(3);
@@ -483,7 +485,7 @@ int Waifu2x::process(const ncnn::Mat& inimage, ncnn::Mat& outimage) const
                     bindings[1] = out_alpha_tile_gpu;
                     bindings[2] = out_gpu;
 
-                    std::vector<ncnn::vk_constant_type> constants(9);
+                    std::vector<ncnn::vk_constant_type> constants(11);
                     constants[0].i = out_tile_gpu.w;
                     constants[1].i = out_tile_gpu.h;
                     constants[2].i = out_tile_gpu.cstep;
@@ -491,11 +493,13 @@ int Waifu2x::process(const ncnn::Mat& inimage, ncnn::Mat& outimage) const
                     constants[4].i = out_gpu.h;
                     constants[5].i = out_gpu.cstep;
                     constants[6].i = xi * TILE_SIZE_X * scale;
-                    constants[7].i = out_gpu.w - xi * TILE_SIZE_X * scale;
+                    constants[7].i = std::min(TILE_SIZE_X * scale, out_gpu.w - xi * TILE_SIZE_X * scale);
                     constants[8].i = channels;
+                    constants[9].i = out_alpha_tile_gpu.w;
+                    constants[10].i = out_alpha_tile_gpu.h;
 
                     ncnn::VkMat dispatcher;
-                    dispatcher.w = out_gpu.w - xi * TILE_SIZE_X * scale;
+                    dispatcher.w = std::min(TILE_SIZE_X * scale, out_gpu.w - xi * TILE_SIZE_X * scale);
                     dispatcher.h = out_gpu.h;
                     dispatcher.c = channels;
 

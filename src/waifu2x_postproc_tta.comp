@@ -47,6 +47,9 @@ layout (push_constant) uniform parameter
     int gx_max;
 
     int channels;
+
+    int alphaw;
+    int alphah;
 } p;
 
 void main()
@@ -62,7 +65,7 @@ void main()
 
     if (gz == 3)
     {
-        v = float(alpha_blob_data[gy * p.w + gx]);
+        v = float(alpha_blob_data[gy * p.alphaw + gx]);
     }
     else
     {

@@ -277,10 +277,10 @@ int Waifu2x::process(const ncnn::Mat& inimage, ncnn::Mat& outimage) const
                 ncnn::VkMat in_alpha_tile_gpu;
                 {
                     // crop tile
-                    int tile_x0 = xi * TILE_SIZE_X;
-                    int tile_x1 = std::min((xi + 1) * TILE_SIZE_X, w) + prepadding + (xi == xtiles - 1 ? prepadding_right : prepadding);
-                    int tile_y0 = yi * TILE_SIZE_Y;
-                    int tile_y1 = std::min((yi + 1) * TILE_SIZE_Y, h) + prepadding + (yi == ytiles - 1 ? prepadding_bottom : prepadding);
+                    int tile_x0 = xi * TILE_SIZE_X - prepadding;
+                    int tile_x1 = std::min((xi + 1) * TILE_SIZE_X, w) + (xi == xtiles - 1 ? prepadding_right : prepadding);
+                    int tile_y0 = yi * TILE_SIZE_Y - prepadding;
+                    int tile_y1 = std::min((yi + 1) * TILE_SIZE_Y, h) + (yi == ytiles - 1 ? prepadding_bottom : prepadding);
 
                     in_tile_gpu[0].create(tile_x1 - tile_x0, tile_y1 - tile_y0, 3, in_out_tile_elemsize, 1, blob_vkallocator);
                     in_tile_gpu[1].create(tile_x1 - tile_x0, tile_y1 - tile_y0, 3, in_out_tile_elemsize, 1, blob_vkallocator);
@@ -313,19 +313,20 @@ int Waifu2x::process(const ncnn::Mat& inimage, ncnn::Mat& outimage) const
                     bindings[8] = in_tile_gpu[7];
                     bindings[9] = in_alpha_tile_gpu;
 
-                    std::vector<ncnn::vk_constant_type> constants(12);
+                    std::vector<ncnn::vk_constant_type> constants(13);
                     constants[0].i = in_gpu.w;
                     constants[1].i = in_gpu.h;
                     constants[2].i = in_gpu.cstep;
                     constants[3].i = in_tile_gpu[0].w;
                     constants[4].i = in_tile_gpu[0].h;
                     constants[5].i = in_tile_gpu[0].cstep;
-                    constants[6].i = std::max(prepadding - yi * TILE_SIZE_Y, 0);
+                    constants[6].i = prepadding;
                     constants[7].i = prepadding;
                     constants[8].i = xi * TILE_SIZE_X;
-                    constants[9].i = channels;
-                    constants[10].i = in_alpha_tile_gpu.w;
-                    constants[11].i = in_alpha_tile_gpu.h;
+                    constants[9].i = std::min(yi * TILE_SIZE_Y, prepadding);
+                    constants[10].i = channels;
+                    constants[11].i = in_alpha_tile_gpu.w;
+                    constants[12].i = in_alpha_tile_gpu.h;
 
                     ncnn::VkMat dispatcher;
                     dispatcher.w = in_tile_gpu[0].w;
@@ -403,10 +404,10 @@ int Waifu2x::process(const ncnn::Mat& inimage, ncnn::Mat& outimage) const
                 ncnn::VkMat in_alpha_tile_gpu;
                 {
                     // crop tile
-                    int tile_x0 = xi * TILE_SIZE_X;
-                    int tile_x1 = std::min((xi + 1) * TILE_SIZE_X, w) + prepadding + (xi == xtiles - 1 ? prepadding_right : prepadding);
-                    int tile_y0 = yi * TILE_SIZE_Y;
-                    int tile_y1 = std::min((yi + 1) * TILE_SIZE_Y, h) + prepadding + (yi == ytiles - 1 ? prepadding_bottom : prepadding);
+                    int tile_x0 = xi * TILE_SIZE_X - prepadding;
+                    int tile_x1 = std::min((xi + 1) * TILE_SIZE_X, w) + (xi == xtiles - 1 ? prepadding_right : prepadding);
+                    int tile_y0 = yi * TILE_SIZE_Y - prepadding;
+                    int tile_y1 = std::min((yi + 1) * TILE_SIZE_Y, h) + (yi == ytiles - 1 ? prepadding_bottom : prepadding);
 
                     in_tile_gpu.create(tile_x1 - tile_x0, tile_y1 - tile_y0, 3, in_out_tile_elemsize, 1, blob_vkallocator);
 
@@ -425,19 +426,20 @@ int Waifu2x::process(const ncnn::Mat& inimage, ncnn::Mat& outimage) const
                     bindings[1] = in_tile_gpu;
                     bindings[2] = in_alpha_tile_gpu;
 
-                    std::vector<ncnn::vk_constant_type> constants(12);
+                    std::vector<ncnn::vk_constant_type> constants(13);
                     constants[0].i = in_gpu.w;
                     constants[1].i = in_gpu.h;
                     constants[2].i = in_gpu.cstep;
                     constants[3].i = in_tile_gpu.w;
                     constants[4].i = in_tile_gpu.h;
                     constants[5].i = in_tile_gpu.cstep;
-                    constants[6].i = std::max(prepadding - yi * TILE_SIZE_Y, 0);
+                    constants[6].i = prepadding;
                     constants[7].i = prepadding;
                     constants[8].i = xi * TILE_SIZE_X;
-                    constants[9].i = channels;
-                    constants[10].i = in_alpha_tile_gpu.w;
-                    constants[11].i = in_alpha_tile_gpu.h;
+                    constants[9].i = std::min(yi * TILE_SIZE_Y, prepadding);
+                    constants[10].i = channels;
+                    constants[11].i = in_alpha_tile_gpu.w;
+                    constants[12].i = in_alpha_tile_gpu.h;
 
                     ncnn::VkMat dispatcher;
                     dispatcher.w = in_tile_gpu.w;

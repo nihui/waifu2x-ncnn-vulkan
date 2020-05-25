@@ -47,6 +47,7 @@ layout (push_constant) uniform parameter
     int pad_left;
 
     int crop_x;
+    int crop_y;
 
     int channels;
 
@@ -64,7 +65,7 @@ void main()
         return;
 
     int x = gx + p.crop_x - p.pad_left;
-    int y = gy - p.pad_top;
+    int y = gy + p.crop_y - p.pad_top;
 
     x = clamp(x, 0, p.w - 1);
     y = clamp(y, 0, p.h - 1);

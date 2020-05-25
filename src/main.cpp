@@ -73,7 +73,7 @@ static void print_usage()
     fprintf(stderr, "  -o output-path       output image path (png) or directory\n");
     fprintf(stderr, "  -n noise-level       denoise level (-1/0/1/2/3, default=0)\n");
     fprintf(stderr, "  -s scale             upscale ratio (1/2, default=2)\n");
-    fprintf(stderr, "  -t tile-size         tile size (>=32, default=400)\n");
+    fprintf(stderr, "  -t tile-size         tile size (>=32/0=auto, default=0)\n");
     fprintf(stderr, "  -m model-path        waifu2x model path (default=models-cunet)\n");
     fprintf(stderr, "  -g gpu-id            gpu device to use (default=0)\n");
     fprintf(stderr, "  -j load:proc:save    thread count for load/proc/save (default=1:2:2)\n");
@@ -312,7 +312,7 @@ int main(int argc, char** argv)
     path_t outputpath;
     int noise = 0;
     int scale = 2;
-    int tilesize = 400;
+    int tilesize = 0;
     path_t model = PATHSTR("models-cunet");
     int gpuid = 0;
     int jobs_load = 1;
@@ -432,7 +432,7 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    if (tilesize < 32)
+    if (tilesize != 0 && tilesize < 32)
     {
         fprintf(stderr, "invalid tilesize argument\n");
         return -1;
@@ -566,6 +566,36 @@ int main(int argc, char** argv)
 
     int gpu_queue_count = ncnn::get_gpu_info(gpuid).compute_queue_count;
     jobs_proc = std::min(jobs_proc, gpu_queue_count);
+
+    if (tilesize == 0)
+    {
+        uint32_t heap_budget = ncnn::get_gpu_device(gpuid)->get_heap_budget();
+
+        // more fine-grained tilesize policy here
+        if (model.find(PATHSTR("models-cunet")) != path_t::npos)
+        {
+            if (heap_budget > 2600)
+                tilesize = 400;
+            else if (heap_budget > 740)
+                tilesize = 200;
+            else if (heap_budget > 250)
+                tilesize = 100;
+            else
+                tilesize = 32;
+        }
+        else if (model.find(PATHSTR("models-upconv_7_anime_style_art_rgb")) != path_t::npos
+            || model.find(PATHSTR("models-upconv_7_photo")) != path_t::npos)
+        {
+            if (heap_budget > 1900)
+                tilesize = 400;
+            else if (heap_budget > 550)
+                tilesize = 200;
+            else if (heap_budget > 190)
+                tilesize = 100;
+            else
+                tilesize = 32;
+        }
+    }
 
     {
         Waifu2x waifu2x(gpuid, tta_mode);

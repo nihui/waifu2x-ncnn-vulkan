@@ -83,10 +83,13 @@ void main()
         v = (v0 + v1 + v2 + v3 + v4 + v5 + v6 + v7) * 0.125f;
 
         const float denorm_val = 255.f;
-        const float clip_eps = 0.5f;
 
-        v = v * denorm_val + clip_eps;
+        v = v * denorm_val;
     }
+
+    const float clip_eps = 0.5f;
+
+    v = v + clip_eps;
 
 #if NCNN_int8_storage
     int v_offset = gy * p.outw + gx + p.offset_x;

@@ -27,7 +27,7 @@ Usage: waifu2x-ncnn-vulkan -i infile -o outfile [options]...
 
   -h                   show this help
   -v                   verbose output
-  -i input-path        input image path (jpg/png) or directory
+  -i input-path        input image path (jpg/png/webp) or directory
   -o output-path       output image path (png) or directory
   -n noise-level       denoise level (-1/0/1/2/3, default=0)
   -s scale             upscale ratio (1/2, default=2)

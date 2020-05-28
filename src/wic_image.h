@@ -77,7 +77,6 @@ unsigned char* wic_decode_image(const wchar_t* filepath, int* w, int* h, int* c)
     *h = height;
     *c = channels;
 
-    fprintf(stderr, "decode %d %d %d\n", *w, *h, *c);
 RETURN:
     if (lock) lock->Release();
     if (bitmap) bitmap->Release();
@@ -91,7 +90,6 @@ RETURN:
 
 int wic_encode_image(const wchar_t* filepath, int w, int h, int c, void* bgrdata)
 {
-    fprintf(stderr, "encode %d %d %d\n", w, h, c);
     IWICImagingFactory* factory = 0;
     IWICStream* stream = 0;
     IWICBitmapEncoder* encoder = 0;

@@ -17,10 +17,12 @@
 #define STBI_NO_GIF
 #define STBI_NO_HDR
 #define STBI_NO_PIC
+#define STBI_NO_STDIO
 #include "stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 #endif // _WIN32
+#include "webp_image.h"
 
 #if _WIN32
 #include <wchar.h>
@@ -69,7 +71,7 @@ static void print_usage()
     fprintf(stderr, "Usage: waifu2x-ncnn-vulkan -i infile -o outfile [options]...\n\n");
     fprintf(stderr, "  -h                   show this help\n");
     fprintf(stderr, "  -v                   verbose output\n");
-    fprintf(stderr, "  -i input-path        input image path (jpg/png) or directory\n");
+    fprintf(stderr, "  -i input-path        input image path (jpg/png/webp) or directory\n");
     fprintf(stderr, "  -o output-path       output image path (png) or directory\n");
     fprintf(stderr, "  -n noise-level       denoise level (-1/0/1/2/3, default=0)\n");
     fprintf(stderr, "  -s scale             upscale ratio (1/2, default=2)\n");
@@ -84,6 +86,7 @@ class Task
 {
 public:
     int id;
+    int webp;
 
     path_t inpath;
     path_t outpath;
@@ -163,36 +166,76 @@ void* load(void* args)
     {
         const path_t& imagepath = ltp->input_files[i];
 
+        int webp = 0;
+
         unsigned char* pixeldata = 0;
         int w;
         int h;
         int c;
 
 #if _WIN32
-        pixeldata = wic_decode_image(imagepath.c_str(), &w, &h, &c);
-#else // _WIN32
-        pixeldata = stbi_load(imagepath.c_str(), &w, &h, &c, 0);
-        if (pixeldata)
+        FILE* fp = _wfopen(imagepath.c_str(), L"rb");
+#else
+        FILE* fp = fopen(imagepath.c_str(), "rb");
+#endif
+        if (fp)
         {
-            // stb_image auto channel
-            if (c == 1)
+            // read whole file
+            unsigned char* filedata = 0;
+            int length = 0;
             {
-                // grayscale -> rgb
-                stbi_image_free(pixeldata);
-                pixeldata = stbi_load(imagepath.c_str(), &w, &h, &c, 3);
+                fseek(fp, 0, SEEK_END);
+                length = ftell(fp);
+                rewind(fp);
+                filedata = (unsigned char*)malloc(length);
+                if (filedata)
+                {
+                    fread(filedata, 1, length, fp);
+                }
+                fclose(fp);
             }
-            else if (c == 2)
+
+            if (filedata)
             {
-                // grayscale + alpha -> rgba
-                stbi_image_free(pixeldata);
-                pixeldata = stbi_load(imagepath.c_str(), &w, &h, &c, 4);
+                pixeldata = webp_load(filedata, length, &w, &h, &c);
+                if (pixeldata)
+                {
+                    webp = 1;
+                }
+                else
+                {
+                    // not webp, try jpg png etc.
+#if _WIN32
+                    pixeldata = wic_decode_image(imagepath.c_str(), &w, &h, &c);
+#else // _WIN32
+                    pixeldata = stbi_load_from_memory(filedata, length, &w, &h, &c, 0);
+                    if (pixeldata)
+                    {
+                        // stb_image auto channel
+                        if (c == 1)
+                        {
+                            // grayscale -> rgb
+                            stbi_image_free(pixeldata);
+                            pixeldata = stbi_load_from_memory(filedata, length, &w, &h, &c, 3);
+                        }
+                        else if (c == 2)
+                        {
+                            // grayscale + alpha -> rgba
+                            stbi_image_free(pixeldata);
+                            pixeldata = stbi_load_from_memory(filedata, length, &w, &h, &c, 4);
+                        }
+                    }
+#endif // _WIN32
+                }
+
+                free(filedata);
             }
         }
-#endif // _WIN32
         if (pixeldata)
         {
             Task v;
             v.id = i;
+            v.webp = webp;
             v.inpath = imagepath;
             v.outpath = ltp->output_files[i];
 
@@ -265,11 +308,18 @@ void* save(void* args)
         // free input pixel data
         {
             unsigned char* pixeldata = (unsigned char*)v.inimage.data;
+            if (v.webp == 1)
+            {
+                free(pixeldata);
+            }
+            else
+            {
 #if _WIN32
-            free(pixeldata);
+                free(pixeldata);
 #else
-            stbi_image_free(pixeldata);
+                stbi_image_free(pixeldata);
 #endif
+            }
         }
 
 #if _WIN32

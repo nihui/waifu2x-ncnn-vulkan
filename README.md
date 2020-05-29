@@ -171,3 +171,4 @@ waifu2x-ncnn-vulkan.exe -i origin.jpg -o output.png -n 2 -s 2
 - https://github.com/Tencent/ncnn for fast neural network inference on ALL PLATFORMS
 - https://github.com/nothings/stb for decoding and encoding image on Linux / MacOS
 - https://github.com/tronkko/dirent for listing files in directory on Windows
+- https://github.com/webmproject/libwebp for decoding Webp images on ALL PLATFORMS

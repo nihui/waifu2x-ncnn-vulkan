@@ -1,7 +1,7 @@
 name: CI
 on: [push, pull_request]
 jobs:
-  windows-vs2019:
+  windows2019:
     runs-on: windows-2019
     steps:
     - uses: actions/checkout@v2
@@ -36,7 +36,7 @@ jobs:
         name: waifu2x-ncnn-vulkan-artifact-windows-2019
         path: waifu2x-ncnn-vulkan-artifact
 
-  ubuntu-16.04:
+  ubuntu1604:
     runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v2
@@ -70,7 +70,7 @@ jobs:
         name: waifu2x-ncnn-vulkan-artifact-ubuntu-16.04
         path: waifu2x-ncnn-vulkan-artifact
 
-  ubuntu-18.04:
+  ubuntu1804:
     runs-on: ubuntu-18.04
     steps:
     - uses: actions/checkout@v2
@@ -104,7 +104,7 @@ jobs:
         name: waifu2x-ncnn-vulkan-artifact-ubuntu-18.04
         path: waifu2x-ncnn-vulkan-artifact
 
-  macos-10.15:
+  macos1015:
     runs-on: macos-10.15
     steps:
     - uses: actions/checkout@v2

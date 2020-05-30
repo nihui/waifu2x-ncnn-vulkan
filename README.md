@@ -41,7 +41,7 @@ Usage: waifu2x-ncnn-vulkan -i infile -o outfile [options]...
 - `input-path` and `output-path` accept either file path or directory path
 - `noise-level` = noise level, large value means strong denoise effect, -1=no effect
 - `scale` = scale level, 1=no scale, 2=upscale 2x
-- `tile-size` = tile size, use smaller value to reduce GPU memory usage, default is 400
+- `tile-size` = tile size, use smaller value to reduce GPU memory usage, default is auto
 - `load:proc:save` = thread count for the three stages (image decoding + waifu2x upscaling + image encoding), use larger value may increase GPU utility and consume more GPU memory. You can tune this configuration as "4:4:4" for many small-size images, and "2:2:2" for large-size images. The default setting usually works fine for most situations. If you find that your GPU is hungry, do increase thread count to achieve faster processing.
 
 If you encounter crash or error, try to upgrade your GPU driver

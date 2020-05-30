@@ -1,0 +1,139 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  windows-vs2019:
+    runs-on: windows-2019
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: cache-vulkansdk
+      id: cache-vulkansdk
+      uses: actions/cache@v1
+      with:
+        path: "VulkanSDK"
+        key: VulkanSDK-1.2.135.0-Installer
+    - name: vulkansdk
+      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
+      run: |
+        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.2.135.0/windows/VulkanSDK-1.2.135.0-Installer.exe?Human=true -OutFile VulkanSDK-1.2.135.0-Installer.exe
+        7z x -aoa ./VulkanSDK-1.2.135.0-Installer.exe -oVulkanSDK
+        Remove-Item .\VulkanSDK\Demos, .\VulkanSDK\glslang, .\VulkanSDK\Samples, .\VulkanSDK\shaderc, .\VulkanSDK\spirv-tools, .\VulkanSDK\Third-Party, .\VulkanSDK\Tools, .\VulkanSDK\Tools32 -Recurse
+    - name: configure
+      run: |
+        $env:VULKAN_SDK="$(pwd)/VulkanSDK"
+        mkdir build; cd build
+        cmake ../src
+    - name: build
+      run: cmake --build build --config Release -j 2
+    - name: deploy
+      run: |
+        mkdir waifu2x-ncnn-vulkan-artifact
+        Copy-Item -Verbose -Path "build\Release\waifu2x-ncnn-vulkan.exe" -Destination "waifu2x-ncnn-vulkan-artifact"
+        Copy-Item -Verbose -Recurse -Path "models\*" -Destination "waifu2x-ncnn-vulkan-artifact"
+    - uses: actions/upload-artifact@v2
+      with:
+        name: waifu2x-ncnn-vulkan-artifact-windows-2019
+        path: waifu2x-ncnn-vulkan-artifact
+
+  ubuntu-16.04:
+    runs-on: ubuntu-16.04
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: cache-vulkansdk
+      id: cache-vulkansdk
+      uses: actions/cache@v1
+      with:
+        path: "1.2.135.0"
+        key: vulkansdk-linux-x86_64-1.2.135.0
+    - name: vulkansdk
+      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.2.135.0/linux/vulkansdk-linux-x86_64-1.2.135.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.2.135.0.tar.gz
+        tar -xf vulkansdk-linux-x86_64-1.2.135.0.tar.gz
+        rm -rf 1.2.135.0/source 1.2.135.0/samples
+        find 1.2.135.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
+    - name: configure
+      run: export VULKAN_SDK=`pwd`/1.2.135.0/x86_64 && mkdir build && cd build && cmake ../src
+    - name: build
+      run: cmake --build build -j 2
+    - name: deploy
+      run: |
+        mkdir waifu2x-ncnn-vulkan-artifact
+        strip build/waifu2x-ncnn-vulkan
+        cp -v build/waifu2x-ncnn-vulkan waifu2x-ncnn-vulkan-artifact
+        cp -v -r models/* waifu2x-ncnn-vulkan-artifact
+    - uses: actions/upload-artifact@v2
+      with:
+        name: waifu2x-ncnn-vulkan-artifact-ubuntu-16.04
+        path: waifu2x-ncnn-vulkan-artifact
+
+  ubuntu-18.04:
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: cache-vulkansdk
+      id: cache-vulkansdk
+      uses: actions/cache@v1
+      with:
+        path: "1.2.135.0"
+        key: vulkansdk-linux-x86_64-1.2.135.0
+    - name: vulkansdk
+      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.2.135.0/linux/vulkansdk-linux-x86_64-1.2.135.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.2.135.0.tar.gz
+        tar -xf vulkansdk-linux-x86_64-1.2.135.0.tar.gz
+        rm -rf 1.2.135.0/source 1.2.135.0/samples
+        find 1.2.135.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
+    - name: configure
+      run: export VULKAN_SDK=`pwd`/1.2.135.0/x86_64 && mkdir build && cd build && cmake ../src
+    - name: build
+      run: cmake --build build -j 2
+    - name: deploy
+      run: |
+        mkdir waifu2x-ncnn-vulkan-artifact
+        strip build/waifu2x-ncnn-vulkan
+        cp -v build/waifu2x-ncnn-vulkan waifu2x-ncnn-vulkan-artifact
+        cp -v -r models/* waifu2x-ncnn-vulkan-artifact
+    - uses: actions/upload-artifact@v2
+      with:
+        name: waifu2x-ncnn-vulkan-artifact-ubuntu-18.04
+        path: waifu2x-ncnn-vulkan-artifact
+
+  macos-10.15:
+    runs-on: macos-10.15
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: cache-vulkansdk
+      id: cache-vulkansdk
+      uses: actions/cache@v1
+      with:
+        path: "vulkansdk-macos-1.2.135.0"
+        key: vulkansdk-macos-1.2.135.0
+    - name: vulkansdk
+      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.2.135.0/mac/vulkansdk-macos-1.2.135.0.tar.gz?Human=true -O vulkansdk-macos-1.2.135.0.tar.gz
+        tar -xf vulkansdk-macos-1.2.135.0.tar.gz
+        rm -rf vulkansdk-macos-1.2.135.0/Applications
+        find vulkansdk-macos-1.2.135.0 -type f | grep -v -E 'vulkan|glslang|MoltenVK' | xargs rm
+    - name: configure
+      run: export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.135.0/macOS && mkdir build && cd build && cmake -DUSE_STATIC_MOLTENVK=ON -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.2.135.0/MoltenVK/macOS/framework/MoltenVK.framework/MoltenVK ../src
+    - name: build
+      run: cmake --build build -j 2
+    - name: deploy
+      run: |
+        mkdir waifu2x-ncnn-vulkan-artifact
+        strip build/waifu2x-ncnn-vulkan
+        cp -v build/waifu2x-ncnn-vulkan waifu2x-ncnn-vulkan-artifact
+        cp -v -r models/* waifu2x-ncnn-vulkan-artifact
+    - uses: actions/upload-artifact@v2
+      with:
+        name: waifu2x-ncnn-vulkan-artifact-macos-10.15
+        path: waifu2x-ncnn-vulkan-artifact

@@ -23,7 +23,7 @@ jobs:
       run: |
         $env:VULKAN_SDK="$(pwd)/VulkanSDK"
         mkdir build; cd build
-        cmake ../src
+        cmake -A x64 ../src
     - name: build
       run: cmake --build build --config Release -j 2
     - name: deploy
@@ -58,7 +58,7 @@ jobs:
       run: |
         $env:VULKAN_SDK="$(pwd)/VulkanSDK"
         mkdir build; cd build
-        cmake ../src
+        cmake -A x64 ../src
     - name: build
       run: cmake --build build --config Release -j 2
     - name: deploy

@@ -1,12 +1,14 @@
 # waifu2x ncnn Vulkan
 
+![CI](https://github.com/nihui/waifu2x-ncnn-vulkan/workflows/CI/badge.svg)
+
 ncnn implementation of waifu2x converter. Runs fast on Intel / AMD / Nvidia with Vulkan API.
 
 waifu2x-ncnn-vulkan uses [ncnn project](https://github.com/Tencent/ncnn) as the universal neural network inference framework.
 
 ## [Download](https://github.com/nihui/waifu2x-ncnn-vulkan/releases)
 
-Download Windows Executable for Intel/AMD/Nvidia GPU
+Download Windows/Linux/MacOS Executable for Intel/AMD/Nvidia GPU
 
 **https://github.com/nihui/waifu2x-ncnn-vulkan/releases**
 

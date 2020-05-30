@@ -1,7 +1,7 @@
 name: CI
 on: [push, pull_request]
 jobs:
-  windows2019:
+  windows-2019:
     runs-on: windows-2019
     steps:
     - uses: actions/checkout@v2
@@ -18,7 +18,7 @@ jobs:
       run: |
         Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.2.135.0/windows/VulkanSDK-1.2.135.0-Installer.exe?Human=true -OutFile VulkanSDK-1.2.135.0-Installer.exe
         7z x -aoa ./VulkanSDK-1.2.135.0-Installer.exe -oVulkanSDK
-        Remove-Item .\VulkanSDK\Demos, .\VulkanSDK\glslang, .\VulkanSDK\Samples, .\VulkanSDK\shaderc, .\VulkanSDK\spirv-tools, .\VulkanSDK\Third-Party, .\VulkanSDK\Tools, .\VulkanSDK\Tools32 -Recurse
+        Get-ChildItem -Path '.\VulkanSDK' -Recurse | Where {$_ -notmatch 'glslang|vulkan'} | Remove-Item -force
     - name: configure
       run: |
         $env:VULKAN_SDK="$(pwd)/VulkanSDK"
@@ -36,7 +36,7 @@ jobs:
         name: waifu2x-ncnn-vulkan-artifact-windows-2019
         path: waifu2x-ncnn-vulkan-artifact
 
-  ubuntu1604:
+  ubuntu-1604:
     runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v2
@@ -70,7 +70,7 @@ jobs:
         name: waifu2x-ncnn-vulkan-artifact-ubuntu-16.04
         path: waifu2x-ncnn-vulkan-artifact
 
-  ubuntu1804:
+  ubuntu-1804:
     runs-on: ubuntu-18.04
     steps:
     - uses: actions/checkout@v2
@@ -104,7 +104,7 @@ jobs:
         name: waifu2x-ncnn-vulkan-artifact-ubuntu-18.04
         path: waifu2x-ncnn-vulkan-artifact
 
-  macos1015:
+  macos-1015:
     runs-on: macos-10.15
     steps:
     - uses: actions/checkout@v2

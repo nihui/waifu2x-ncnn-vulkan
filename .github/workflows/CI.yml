@@ -12,15 +12,15 @@ jobs:
       uses: actions/cache@v1
       with:
         path: "VulkanSDK"
-        key: VulkanSDK-1.2.135.0-Installer-3
+        key: VulkanSDK-1.2.135.0-Installer-4
     - name: vulkansdk
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
         Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.2.135.0/windows/VulkanSDK-1.2.135.0-Installer.exe?Human=true -OutFile VulkanSDK-1.2.135.0-Installer.exe
         7z x -aoa ./VulkanSDK-1.2.135.0-Installer.exe -oVulkanSDK
         Remove-Item .\VulkanSDK\Demos, .\VulkanSDK\Samples, .\VulkanSDK\Third-Party, .\VulkanSDK\Tools, .\VulkanSDK\Tools32, .\VulkanSDK\Bin32, .\VulkanSDK\Lib32 -Recurse
-        Get-ChildItem -Path '.\VulkanSDK' -Recurse | where { !$_.PSisContainer } | Select -ExpandProperty FullName
-        Get-ChildItem -Path '.\VulkanSDK' -Recurse | where { !$_.PSisContainer } | Select -ExpandProperty FullName | Where {$_ -cnotmatch 'glslang|vulkan'} | sort length -Descending | Remove-Item -Verbose -Force
+        Get-ChildItem -Path '.\VulkanSDK' -Recurse | where { !$_.PSisContainer } | Where {$_ -cnotmatch 'glslang|vulkan'} | Select -ExpandProperty FullName
+        Get-ChildItem -Path '.\VulkanSDK' -Recurse | where { !$_.PSisContainer } | Where {$_ -cnotmatch 'glslang|vulkan'} | Select -ExpandProperty FullName | sort length -Descending | Remove-Item -Verbose -Force
     - name: configure
       run: |
         $env:VULKAN_SDK="$(pwd)/VulkanSDK"

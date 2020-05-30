@@ -12,13 +12,13 @@ jobs:
       uses: actions/cache@v1
       with:
         path: "VulkanSDK"
-        key: VulkanSDK-1.2.135.0-Installer
+        key: VulkanSDK-1.2.135.0-Installer-1
     - name: vulkansdk
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
         Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.2.135.0/windows/VulkanSDK-1.2.135.0-Installer.exe?Human=true -OutFile VulkanSDK-1.2.135.0-Installer.exe
         7z x -aoa ./VulkanSDK-1.2.135.0-Installer.exe -oVulkanSDK
-        Get-ChildItem -Path '.\VulkanSDK' -Recurse | Where {$_ -notmatch 'glslang|vulkan'} | Remove-Item -force
+        Get-ChildItem -Path '.\VulkanSDK' -Recurse | Where {$_ -cnotmatch 'glslang|vulkan'} | Remove-Item -force
     - name: configure
       run: |
         $env:VULKAN_SDK="$(pwd)/VulkanSDK"

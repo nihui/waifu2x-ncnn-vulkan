@@ -46,6 +46,7 @@ Usage: waifu2x-ncnn-vulkan -i infile -o outfile [options]...
 - `scale` = scale level, 1 = no scaling, 2 = upscale 2x
 - `tile-size` = tile size, use smaller value to reduce GPU memory usage, default selects automatically
 - `load:proc:save` = thread count for the three stages (image decoding + waifu2x upscaling + image encoding), using larger values may increase GPU usage and consume more GPU memory. You can tune this configuration with "4:4:4" for many small-size images, and "2:2:2" for large-size images. The default setting usually works fine for most situations. If you find that your GPU is hungry, try increasing thread count to achieve faster processing.
+- `format` = the format of the image to be output, png is better supported, however webp generally yields smaller file sizes, both are losslessly encoded
 
 If you encounter a crash or error, try upgrading your GPU driver:
 

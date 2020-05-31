@@ -92,4 +92,13 @@ static int list_directory(const path_t& dirpath, std::vector<path_t>& imagepaths
 }
 #endif // _WIN32
 
+static path_t get_file_extension(const path_t& path)
+{
+    size_t dot = path.find(PATHSTR('.'));
+    if (dot == path_t::npos)
+        return path_t();
+
+    return path.substr(dot + 1);
+}
+
 #endif // FILESYSTEM_UTILS_H

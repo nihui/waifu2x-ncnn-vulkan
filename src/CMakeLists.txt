@@ -212,7 +212,7 @@ add_executable(waifu2x-ncnn-vulkan main.cpp waifu2x.cpp)
 
 add_dependencies(waifu2x-ncnn-vulkan generate-spirv)
 
-set(WAIFU2X_LINK_LIBRARIES ncnn webpdecoder ${Vulkan_LIBRARY})
+set(WAIFU2X_LINK_LIBRARIES ncnn webp ${Vulkan_LIBRARY})
 
 if(USE_STATIC_MOLTENVK)
     find_library(CoreFoundation NAMES CoreFoundation)

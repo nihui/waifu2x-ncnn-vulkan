@@ -174,6 +174,12 @@ int Waifu2x::load(const std::string& parampath, const std::string& modelpath)
 
 int Waifu2x::process(const ncnn::Mat& inimage, ncnn::Mat& outimage) const
 {
+    if (noise == -1 && scale == 1)
+    {
+        outimage = inimage;
+        return 0;
+    }
+
     const unsigned char* pixeldata = (const unsigned char*)inimage.data;
     const int w = inimage.w;
     const int h = inimage.h;

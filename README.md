@@ -30,7 +30,7 @@ Usage: waifu2x-ncnn-vulkan -i infile -o outfile [options]...
   -h                   show this help
   -v                   verbose output
   -i input-path        input image path (jpg/png/webp) or directory
-  -o output-path       output image path (png) or directory
+  -o output-path       output image path (png/webp) or directory
   -n noise-level       denoise level (-1/0/1/2/3, default=0)
   -s scale             upscale ratio (1/2, default=2)
   -t tile-size         tile size (>=32/0=auto, default=0)
@@ -38,6 +38,7 @@ Usage: waifu2x-ncnn-vulkan -i infile -o outfile [options]...
   -g gpu-id            gpu device to use (default=0)
   -j load:proc:save    thread count for load/proc/save (default=1:2:2)
   -x                   enable tta mode
+  -f format            output image format (png/webp, default=ext/png)
 ```
 
 - `input-path` and `output-path` accept either file path or directory path

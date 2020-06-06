@@ -94,7 +94,7 @@ static int list_directory(const path_t& dirpath, std::vector<path_t>& imagepaths
 
 static path_t get_file_extension(const path_t& path)
 {
-    size_t dot = path.find(PATHSTR('.'));
+    size_t dot = path.rfind(PATHSTR('.'));
     if (dot == path_t::npos)
         return path_t();
 

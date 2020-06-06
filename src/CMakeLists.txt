@@ -172,6 +172,7 @@ option(WITH_LAYER_pixelshuffle "" OFF)
 option(WITH_LAYER_deepcopy "" OFF)
 option(WITH_LAYER_mish "" OFF)
 option(WITH_LAYER_statisticspooling "" OFF)
+option(WITH_LAYER_swish "" OFF)
 
 add_subdirectory(ncnn)
 

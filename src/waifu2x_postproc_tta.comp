@@ -14,10 +14,6 @@
 
 layout (constant_id = 0) const int bgr = 0;
 
-layout (local_size_x_id = 233) in;
-layout (local_size_y_id = 234) in;
-layout (local_size_z_id = 235) in;
-
 layout (binding = 0) readonly buffer bottom_blob0 { sfp bottom_blob0_data[]; };
 layout (binding = 1) readonly buffer bottom_blob1 { sfp bottom_blob1_data[]; };
 layout (binding = 2) readonly buffer bottom_blob2 { sfp bottom_blob2_data[]; };

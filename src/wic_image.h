@@ -161,4 +161,91 @@ RETURN:
     return ret;
 }
 
+int wic_encode_jpeg_image(const wchar_t* filepath, int w, int h, int c, void* bgrdata)
+{
+    // assert c == 3
+
+    IWICImagingFactory* factory = 0;
+    IWICStream* stream = 0;
+    IWICBitmapEncoder* encoder = 0;
+    IWICBitmapFrameEncode* frame = 0;
+    IPropertyBag2* propertybag = 0;
+    WICPixelFormatGUID format = GUID_WICPixelFormat24bppBGR;
+    int stride = (w * c * 8 + 7) / 8;
+    unsigned char* data = 0;
+    int ret = 0;
+
+    PROPBAG2 option = { 0 };
+    option.pstrName = L"ImageQuality";
+    VARIANT varValue;
+    VariantInit(&varValue);
+    varValue.vt = VT_R4;
+    varValue.fltVal = 1.0f;
+
+    if (CoCreateInstance(CLSID_WICImagingFactory1, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&factory)))
+        goto RETURN;
+
+    if (factory->CreateStream(&stream))
+        goto RETURN;
+
+    if (stream->InitializeFromFilename(filepath, GENERIC_WRITE))
+        goto RETURN;
+
+    if (factory->CreateEncoder(GUID_ContainerFormatJpeg, 0, &encoder))
+        goto RETURN;
+
+    if (encoder->Initialize(stream, WICBitmapEncoderNoCache))
+        goto RETURN;
+
+    if (encoder->CreateNewFrame(&frame, &propertybag))
+        goto RETURN;
+
+    if (propertybag->Write(1, &option, &varValue))
+        goto RETURN;
+
+    if (frame->Initialize(propertybag))
+        goto RETURN;
+
+    if (frame->SetSize((UINT)w, (UINT)h))
+        goto RETURN;
+
+    if (frame->SetPixelFormat(&format))
+        goto RETURN;
+
+    if (!IsEqualGUID(format, GUID_WICPixelFormat24bppBGR))
+        goto RETURN;
+
+    data = (unsigned char*)malloc(h * stride);
+    if (!data)
+        goto RETURN;
+
+    for (int y = 0; y < h; y++)
+    {
+        const unsigned char* bgrptr = (const unsigned char*)bgrdata + y * w * c;
+        unsigned char* ptr = data + y * stride;
+        memcpy(ptr, bgrptr, w * c);
+    }
+
+    if (frame->WritePixels(h, stride, h * stride, data))
+        goto RETURN;
+
+    if (frame->Commit())
+        goto RETURN;
+
+    if (encoder->Commit())
+        goto RETURN;
+
+    ret = 1;
+
+RETURN:
+    if (data) free(data);
+    if (encoder) encoder->Release();
+    if (frame) frame->Release();
+    if (propertybag) propertybag->Release();
+    if (stream) stream->Release();
+    if (factory) factory->Release();
+
+    return ret;
+}
+
 #endif // WIC_IMAGE_H

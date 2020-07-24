@@ -92,6 +92,15 @@ static int list_directory(const path_t& dirpath, std::vector<path_t>& imagepaths
 }
 #endif // _WIN32
 
+static path_t get_file_name_without_extension(const path_t& path)
+{
+    size_t dot = path.rfind(PATHSTR('.'));
+    if (dot == path_t::npos)
+        return path;
+
+    return path.substr(0, dot);
+}
+
 static path_t get_file_extension(const path_t& path)
 {
     size_t dot = path.rfind(PATHSTR('.'));

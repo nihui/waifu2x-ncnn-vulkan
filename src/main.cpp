@@ -194,7 +194,7 @@ void* load(void* args)
     const int count = ltp->input_files.size();
     const int scale = ltp->scale;
 
-    #pragma omp parallel for num_threads(ltp->jobs_load)
+    #pragma omp parallel for schedule(static,1) num_threads(ltp->jobs_load)
     for (int i=0; i<count; i++)
     {
         const path_t& imagepath = ltp->input_files[i];
@@ -605,10 +605,34 @@ int main(int argc, char** argv)
             const int count = filenames.size();
             input_files.resize(count);
             output_files.resize(count);
+
+            path_t last_filename;
+            path_t last_filename_noext;
             for (int i=0; i<count; i++)
             {
-                input_files[i] = inputpath + PATHSTR('/') + filenames[i];
-                output_files[i] = outputpath + PATHSTR('/') + filenames[i] + PATHSTR('.') + format;
+                path_t filename = filenames[i];
+                path_t filename_noext = get_file_name_without_extension(filename);
+                path_t output_filename = filename_noext + PATHSTR('.') + format;
+
+                // filename list is sorted, check if output image path conflicts
+                if (filename_noext == last_filename_noext)
+                {
+                    path_t output_filename2 = filename + PATHSTR('.') + format;
+#if _WIN32
+                    fwprintf(stderr, L"both %ls and %ls output %ls ! %ls will output %ls\n", filename.c_str(), last_filename.c_str(), output_filename.c_str(), filename.c_str(), output_filename2.c_str());
+#else
+                    fprintf(stderr, "both %s and %s output %s ! %s will output %s\n", filename.c_str(), last_filename.c_str(), output_filename.c_str(), filename.c_str(), output_filename2.c_str());
+#endif
+                    output_filename = output_filename2;
+                }
+                else
+                {
+                    last_filename = filename;
+                    last_filename_noext = filename_noext;
+                }
+
+                input_files[i] = inputpath + PATHSTR('/') + filename;
+                output_files[i] = outputpath + PATHSTR('/') + output_filename;
             }
         }
         else if (!path_is_directory(inputpath) && !path_is_directory(outputpath))

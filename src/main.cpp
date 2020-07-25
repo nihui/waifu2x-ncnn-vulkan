@@ -740,6 +740,9 @@ int main(int argc, char** argv)
     }
 #endif
 
+    path_t paramfullpath = sanitize_filepath(parampath);
+    path_t modelfullpath = sanitize_filepath(modelpath);
+
 #if _WIN32
     CoInitializeEx(NULL, COINIT_MULTITHREADED);
 #endif
@@ -827,7 +830,7 @@ int main(int argc, char** argv)
         {
             waifu2x[i] = new Waifu2x(gpuid[i], tta_mode);
 
-            waifu2x[i]->load(parampath, modelpath);
+            waifu2x[i]->load(paramfullpath, modelfullpath);
 
             waifu2x[i]->noise = noise;
             waifu2x[i]->scale = scale;

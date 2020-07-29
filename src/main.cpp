@@ -250,12 +250,14 @@ void* load(void* args)
                             // grayscale -> rgb
                             stbi_image_free(pixeldata);
                             pixeldata = stbi_load_from_memory(filedata, length, &w, &h, &c, 3);
+                            c = 3;
                         }
                         else if (c == 2)
                         {
                             // grayscale + alpha -> rgba
                             stbi_image_free(pixeldata);
                             pixeldata = stbi_load_from_memory(filedata, length, &w, &h, &c, 4);
+                            c = 4;
                         }
                     }
 #endif // _WIN32

@@ -812,7 +812,7 @@ int main(int argc, char** argv)
                 tilesize[i] = 32;
         }
         else if (model.find(PATHSTR("models-upconv_7_anime_style_art_rgb")) != path_t::npos
-            || model.find(PATHSTR("models-upconv_7_photo")) != path_t::npos)
+                 || model.find(PATHSTR("models-upconv_7_photo")) != path_t::npos)
         {
             if (heap_budget > 1900)
                 tilesize[i] = 400;

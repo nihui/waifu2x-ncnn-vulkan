@@ -643,7 +643,7 @@ int main(int argc, char** argv)
                 // filename list is sorted, check if output image path conflicts
                 if (filename_noext == last_filename_noext)
                 {
-                    path_t output_filename2 = filename + PATHSTR('.') + format;
+                    path_t output_filename2 = filename_noext + PATHSTR('.') + format;
 #if _WIN32
                     fwprintf(stderr, L"both %ls and %ls output %ls ! %ls will output %ls\n", filename.c_str(), last_filename.c_str(), output_filename.c_str(), filename.c_str(), output_filename2.c_str());
 #else

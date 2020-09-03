@@ -100,19 +100,19 @@ static std::vector<int> parse_optarg_int_array(const char* optarg)
 
 static void print_usage()
 {
-    fprintf(stderr, "Usage: waifu2x-ncnn-vulkan -i infile -o outfile [options]...\n\n");
-    fprintf(stderr, "  -h                   show this help\n");
-    fprintf(stderr, "  -v                   verbose output\n");
-    fprintf(stderr, "  -i input-path        input image path (jpg/png/webp) or directory\n");
-    fprintf(stderr, "  -o output-path       output image path (jpg/png/webp) or directory\n");
-    fprintf(stderr, "  -n noise-level       denoise level (-1/0/1/2/3, default=0)\n");
-    fprintf(stderr, "  -s scale             upscale ratio (1/2, default=2)\n");
-    fprintf(stderr, "  -t tile-size         tile size (>=32/0=auto, default=0) can be 0,0,0 for multi-gpu\n");
-    fprintf(stderr, "  -m model-path        waifu2x model path (default=models-cunet)\n");
-    fprintf(stderr, "  -g gpu-id            gpu device to use (default=auto) can be 0,1,2 for multi-gpu\n");
-    fprintf(stderr, "  -j load:proc:save    thread count for load/proc/save (default=1:2:2) can be 1:2,2,2:2 for multi-gpu\n");
-    fprintf(stderr, "  -x                   enable tta mode\n");
-    fprintf(stderr, "  -f format            output image format (jpg/png/webp, default=ext/png)\n");
+    fprintf(stdout, "Usage: waifu2x-ncnn-vulkan -i infile -o outfile [options]...\n\n");
+    fprintf(stdout, "  -h                   show this help\n");
+    fprintf(stdout, "  -v                   verbose output\n");
+    fprintf(stdout, "  -i input-path        input image path (jpg/png/webp) or directory\n");
+    fprintf(stdout, "  -o output-path       output image path (jpg/png/webp) or directory\n");
+    fprintf(stdout, "  -n noise-level       denoise level (-1/0/1/2/3, default=0)\n");
+    fprintf(stdout, "  -s scale             upscale ratio (1/2, default=2)\n");
+    fprintf(stdout, "  -t tile-size         tile size (>=32/0=auto, default=0) can be 0,0,0 for multi-gpu\n");
+    fprintf(stdout, "  -m model-path        waifu2x model path (default=models-cunet)\n");
+    fprintf(stdout, "  -g gpu-id            gpu device to use (default=auto) can be 0,1,2 for multi-gpu\n");
+    fprintf(stdout, "  -j load:proc:save    thread count for load/proc/save (default=1:2:2) can be 1:2,2,2:2 for multi-gpu\n");
+    fprintf(stdout, "  -x                   enable tta mode\n");
+    fprintf(stdout, "  -f format            output image format (jpg/png/webp, default=ext/png)\n");
 }
 
 class Task
@@ -398,9 +398,9 @@ void* save(void* args)
             if (verbose)
             {
 #if _WIN32
-                fwprintf(stderr, L"%ls -> %ls done\n", v.inpath.c_str(), v.outpath.c_str());
+                fwprintf(stdout, L"%ls -> %ls done\n", v.inpath.c_str(), v.outpath.c_str());
 #else
-                fprintf(stderr, "%s -> %s done\n", v.inpath.c_str(), v.outpath.c_str());
+                fprintf(stdout, "%s -> %s done\n", v.inpath.c_str(), v.outpath.c_str());
 #endif
             }
         }

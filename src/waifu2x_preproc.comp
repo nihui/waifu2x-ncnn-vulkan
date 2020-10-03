@@ -62,12 +62,9 @@ void main()
 #if NCNN_int8_storage
     int v_offset = y * p.w + x;
 
-    float v;
+	int z = (bgr * (2 - gz % 3 + gz / 3)) + (1 - bgr) * gz;
 
-    if (bgr == 1 && gz != 3)
-        v = float(uint(bottom_blob_data[v_offset * p.channels + 2 - gz]));
-    else
-        v = float(uint(bottom_blob_data[v_offset * p.channels + gz]));
+	float v = float(uint(bottom_blob_data[v_offset * p.channels + z]));
 #else
     int v_offset = gz * p.cstep + y * p.w + x;
 

@@ -116,10 +116,10 @@ int Waifu2x::load(const std::string& parampath, const std::string& modelpath)
 #endif
 
         waifu2x_preproc = new ncnn::Pipeline(net.vulkan_device());
-        waifu2x_preproc->set_optimal_local_size_xyz(32, 32, 3);
+        waifu2x_preproc->set_optimal_local_size_xyz(32, 32, 1);
 
         waifu2x_postproc = new ncnn::Pipeline(net.vulkan_device());
-        waifu2x_postproc->set_optimal_local_size_xyz(32, 32, 3);
+        waifu2x_postproc->set_optimal_local_size_xyz(32, 32, 1);
 
         if (tta_mode)
         {

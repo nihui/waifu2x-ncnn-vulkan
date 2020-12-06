@@ -23,13 +23,14 @@ This package includes all the binaries and models required. It is portable, so n
 waifu2x-ncnn-vulkan.exe -i input.jpg -o output.png -n 2 -s 2
 
 # video mode
-waifu2x-ncnn-vulkan.exe -i input.mkv -o output.mkv -n 2 -s 2
+waifu2x-ncnn-vulkan.exe -a input.mkv -b output.mkv -n 2 -s 2
 ```
 
 ### Full Usages
 
 ```console
 Usage: waifu2x-ncnn-vulkan -i infile -o outfile [options]...
+       waifu2x-ncnn-vulkan -a invideo -b outvideo [options]...
 
   -h                   show this help
   -v                   verbose output

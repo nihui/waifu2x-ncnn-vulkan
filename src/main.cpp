@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <queue>
 #include <vector>
+#include <functional>
+#include <condition_variable>
 #include <clocale>
 
 #if _WIN32
@@ -23,6 +25,8 @@
 #include "stb_image_write.h"
 #endif // _WIN32
 #include "webp_image.h"
+#include <opencv2/video.hpp>
+#include <opencv2/videoio.hpp>
 
 #if _WIN32
 #include <wchar.h>
@@ -100,11 +104,14 @@ static std::vector<int> parse_optarg_int_array(const char* optarg)
 
 static void print_usage()
 {
-    fprintf(stdout, "Usage: waifu2x-ncnn-vulkan -i infile -o outfile [options]...\n\n");
+    fprintf(stdout, "Usage: waifu2x-ncnn-vulkan -i infile -o outfile [options]...\n");
+    fprintf(stdout, "       waifu2x-ncnn-vulkan -a invideo -b outvideo [options]...\n\n");
     fprintf(stdout, "  -h                   show this help\n");
     fprintf(stdout, "  -v                   verbose output\n");
     fprintf(stdout, "  -i input-path        input image path (jpg/png/webp) or directory\n");
     fprintf(stdout, "  -o output-path       output image path (jpg/png/webp) or directory\n");
+    fprintf(stdout, "  -a video input       input video path\n");
+    fprintf(stdout, "  -b video output      output video path\n");
     fprintf(stdout, "  -n noise-level       denoise level (-1/0/1/2/3, default=0)\n");
     fprintf(stdout, "  -s scale             upscale ratio (1/2, default=2)\n");
     fprintf(stdout, "  -t tile-size         tile size (>=32/0=auto, default=0) can be 0,0,0 for multi-gpu\n");
@@ -126,6 +133,9 @@ public:
 
     ncnn::Mat inimage;
     ncnn::Mat outimage;
+
+    bool video_mode;
+    std::function<void(cv::Mat& scaled_frame, int frame_index)> frame_scaled_cb;
 };
 
 class TaskQueue
@@ -182,15 +192,124 @@ class LoadThreadParams
 public:
     int scale;
     int jobs_load;
+    bool video_mode;
 
     // session data
     std::vector<path_t> input_files;
     std::vector<path_t> output_files;
+
+    path_t input_video;
+    path_t output_video;
+
+    int total_jobs_proc;
+    int jobs_save;
+    std::vector<ncnn::Thread*> proc_threads;
+    std::vector<ncnn::Thread*> save_threads;
 };
+
+void* load_video(const LoadThreadParams* ltp)
+{
+    cv::VideoCapture video(ltp->input_video);
+    if (video.isOpened())
+    {
+        int frame_index = 0;
+        uint64_t total_frames = video.get(cv::CAP_PROP_FRAME_COUNT);
+        uint64_t processed_frames = 0;
+        int scale = ltp->scale;
+        std::mutex m;
+        std::condition_variable condition;
+
+        bool done;
+        cv::VideoWriter writer(ltp->output_video.c_str(),
+                               cv::VideoWriter::fourcc('h', 'v', 'c', '1'),
+                               video.get(cv::CAP_PROP_FPS),
+                               cv::Size(
+                                       (int)(video.get(cv::CAP_PROP_FRAME_WIDTH) * scale),
+                                       (int)(video.get(cv::CAP_PROP_FRAME_HEIGHT) * scale)),true);
+        auto cb = [&writer, &processed_frames, &done, &condition, total_frames, ltp](cv::Mat& scaled_frame, int frame_index) {
+            fprintf(stderr, "video frame %d processed! [%llu/%llu]\n", frame_index, processed_frames + 1, total_frames);
+            writer.write(scaled_frame);
+            processed_frames++;
+            if (processed_frames == total_frames)
+            {
+                fprintf(stderr, "all frames processed\n");
+                Task end;
+                end.id = -233;
+
+                for (int i=0; i<ltp->total_jobs_proc; i++)
+                {
+                    toproc.put(end);
+                }
+
+                for (int i=0; i<ltp->jobs_save; i++)
+                {
+                    tosave.put(end);
+                }
+
+                done = true;
+                condition.notify_one();
+                fprintf(stderr, "notified\n");
+            }
+        };
+        while (true) {
+            cv::Mat frame;
+            video >> frame;
+            if (frame.empty()) {
+                break;
+            }
+            Task v;
+            v.id = frame_index;
+            frame_index++;
+            v.webp = false;
+            v.video_mode = true;
+            v.frame_scaled_cb = cb;
+
+            int w = frame.size().width;
+            int h = frame.size().height;
+            int c = frame.channels();
+            v.inimage = ncnn::Mat(w, h, (void*)frame.data, (size_t)c, c);
+            v.outimage = ncnn::Mat(w * scale, h * scale, (size_t)c, c);
+
+            toproc.put(v);
+        }
+
+        video.release();
+
+        {
+            std::unique_lock<std::mutex> lk(m);
+            condition.wait(lk, [&done]{return done;});
+        }
+
+        for (int i=0; i<ltp->total_jobs_proc; i++)
+        {
+            ltp->proc_threads[i]->join();
+            delete ltp->proc_threads[i];
+        }
+        for (int i=0; i<ltp->jobs_save; i++)
+        {
+            ltp->save_threads[i]->join();
+            delete ltp->save_threads[i];
+        }
+    }
+    else
+    {
+#if _WIN32
+        fwprintf(stderr, L"video %ls cannot be opened ! skipped !\n", ltp->input_video.c_str());
+#else // _WIN32
+        fprintf(stderr, "video %s cannot be opened ! skipped !\n", ltp->input_video.c_str());
+#endif // _WIN32
+    }
+
+    return 0;
+}
 
 void* load(void* args)
 {
     const LoadThreadParams* ltp = (const LoadThreadParams*)args;
+    if (ltp->video_mode)
+    {
+        return load_video(ltp);
+    }
     const int count = ltp->input_files.size();
     const int scale = ltp->scale;
 
@@ -352,71 +471,156 @@ void* save(void* args)
         if (v.id == -233)
             break;
 
-        // free input pixel data
+        if (v.video_mode)
         {
-            unsigned char* pixeldata = (unsigned char*)v.inimage.data;
-            if (v.webp == 1)
+            cv::Mat scaled_frame(v.outimage.h, v.outimage.w, CV_8UC3, v.outimage.data);
+            v.frame_scaled_cb(scaled_frame, v.id);
+        }
+        else
+        {
+            // free input pixel data
             {
-                free(pixeldata);
+                unsigned char* pixeldata = (unsigned char*)v.inimage.data;
+                if (v.webp == 1)
+                {
+                    free(pixeldata);
+                }
+                else
+                {
+#if _WIN32
+                    free(pixeldata);
+#else
+                    stbi_image_free(pixeldata);
+#endif
+                }
+            }
+
+            int success = 0;
+
+            path_t ext = get_file_extension(v.outpath);
+
+            if (ext == PATHSTR("webp") || ext == PATHSTR("WEBP"))
+            {
+                success = webp_save(v.outpath.c_str(), v.outimage.w, v.outimage.h, v.outimage.elempack, (const unsigned char*)v.outimage.data);
+            }
+            else if (ext == PATHSTR("png") || ext == PATHSTR("PNG"))
+            {
+#if _WIN32
+                success = wic_encode_image(v.outpath.c_str(), v.outimage.w, v.outimage.h, v.outimage.elempack, v.outimage.data);
+#else
+                success = stbi_write_png(v.outpath.c_str(), v.outimage.w, v.outimage.h, v.outimage.elempack, v.outimage.data, 0);
+#endif
+            }
+            else if (ext == PATHSTR("jpg") || ext == PATHSTR("JPG") || ext == PATHSTR("jpeg") || ext == PATHSTR("JPEG"))
+            {
+#if _WIN32
+                success = wic_encode_jpeg_image(v.outpath.c_str(), v.outimage.w, v.outimage.h, v.outimage.elempack, v.outimage.data);
+#else
+                success = stbi_write_jpg(v.outpath.c_str(), v.outimage.w, v.outimage.h, v.outimage.elempack, v.outimage.data, 100);
+#endif
+            }
+            if (success)
+            {
+                if (verbose)
+                {
+#if _WIN32
+                    fwprintf(stdout, L"%ls -> %ls done\n", v.inpath.c_str(), v.outpath.c_str());
+#else
+                    fprintf(stdout, "%s -> %s done\n", v.inpath.c_str(), v.outpath.c_str());
+#endif
+                }
             }
             else
             {
 #if _WIN32
-                free(pixeldata);
+                fwprintf(stderr, L"encode image %ls failed\n", v.outpath.c_str());
 #else
-                stbi_image_free(pixeldata);
+                fprintf(stderr, "encode image %s failed\n", v.outpath.c_str());
 #endif
             }
-        }
-
-        int success = 0;
-
-        path_t ext = get_file_extension(v.outpath);
-
-        if (ext == PATHSTR("webp") || ext == PATHSTR("WEBP"))
-        {
-            success = webp_save(v.outpath.c_str(), v.outimage.w, v.outimage.h, v.outimage.elempack, (const unsigned char*)v.outimage.data);
-        }
-        else if (ext == PATHSTR("png") || ext == PATHSTR("PNG"))
-        {
-#if _WIN32
-            success = wic_encode_image(v.outpath.c_str(), v.outimage.w, v.outimage.h, v.outimage.elempack, v.outimage.data);
-#else
-            success = stbi_write_png(v.outpath.c_str(), v.outimage.w, v.outimage.h, v.outimage.elempack, v.outimage.data, 0);
-#endif
-        }
-        else if (ext == PATHSTR("jpg") || ext == PATHSTR("JPG") || ext == PATHSTR("jpeg") || ext == PATHSTR("JPEG"))
-        {
-#if _WIN32
-            success = wic_encode_jpeg_image(v.outpath.c_str(), v.outimage.w, v.outimage.h, v.outimage.elempack, v.outimage.data);
-#else
-            success = stbi_write_jpg(v.outpath.c_str(), v.outimage.w, v.outimage.h, v.outimage.elempack, v.outimage.data, 100);
-#endif
-        }
-        if (success)
-        {
-            if (verbose)
-            {
-#if _WIN32
-                fwprintf(stdout, L"%ls -> %ls done\n", v.inpath.c_str(), v.outpath.c_str());
-#else
-                fprintf(stdout, "%s -> %s done\n", v.inpath.c_str(), v.outpath.c_str());
-#endif
-            }
-        }
-        else
-        {
-#if _WIN32
-            fwprintf(stderr, L"encode image %ls failed\n", v.outpath.c_str());
-#else
-            fprintf(stderr, "encode image %s failed\n", v.outpath.c_str());
-#endif
         }
     }
 
     return 0;
 }
 
+int load_model_param(path_t model, int noise, int scale, path_t &out_paramfullpath, path_t &out_modelfullpath, int &out_prepadding)
+{
+    out_prepadding = 0;
+    fprintf(stderr, "model: %s\n", model.c_str());
+
+    if (model.find(PATHSTR("models-cunet")) != path_t::npos)
+    {
+        if (noise == -1)
+        {
+            out_prepadding = 18;
+        }
+        else if (scale == 1)
+        {
+            out_prepadding = 28;
+        }
+        else if (scale == 2)
+        {
+            out_prepadding = 18;
+        }
+    }
+    else if (model.find(PATHSTR("models-upconv_7_anime_style_art_rgb")) != path_t::npos)
+    {
+        out_prepadding = 7;
+    }
+    else if (model.find(PATHSTR("models-upconv_7_photo")) != path_t::npos)
+    {
+        out_prepadding = 7;
+    }
+    else
+    {
+        fprintf(stderr, "unknown model dir type\n");
+        return -1;
+    }
+
+#if _WIN32
+    wchar_t parampath[256];
+    wchar_t modelpath[256];
+    if (noise == -1)
+    {
+        swprintf(parampath, 256, L"%s/scale2.0x_model.param", model.c_str());
+        swprintf(modelpath, 256, L"%s/scale2.0x_model.bin", model.c_str());
+    }
+    else if (scale == 1)
+    {
+        swprintf(parampath, 256, L"%s/noise%d_model.param", model.c_str(), noise);
+        swprintf(modelpath, 256, L"%s/noise%d_model.bin", model.c_str(), noise);
+    }
+    else if (scale == 2)
+    {
+        swprintf(parampath, 256, L"%s/noise%d_scale2.0x_model.param", model.c_str(), noise);
+        swprintf(modelpath, 256, L"%s/noise%d_scale2.0x_model.bin", model.c_str(), noise);
+    }
+#else
+    char parampath[256];
+    char modelpath[256];
+    if (noise == -1)
+    {
+        sprintf(parampath, "%s/scale2.0x_model.param", model.c_str());
+        sprintf(modelpath, "%s/scale2.0x_model.bin", model.c_str());
+    }
+    else if (scale == 1)
+    {
+        sprintf(parampath, "%s/noise%d_model.param", model.c_str(), noise);
+        sprintf(modelpath, "%s/noise%d_model.bin", model.c_str(), noise);
+    }
+    else if (scale == 2)
+    {
+        sprintf(parampath, "%s/noise%d_scale2.0x_model.param", model.c_str(), noise);
+        sprintf(modelpath, "%s/noise%d_scale2.0x_model.bin", model.c_str(), noise);
+    }
+#endif
+
+    out_paramfullpath = sanitize_filepath(parampath);
+    out_modelfullpath = sanitize_filepath(modelpath);
+
+    return 0;
+}
 
 #if _WIN32
 int wmain(int argc, wchar_t** argv)
@@ -426,6 +630,10 @@ int main(int argc, char** argv)
 {
     path_t inputpath;
     path_t outputpath;
+
+    path_t video_inputpath;
+    path_t video_outputpath;
+
     int noise = 0;
     int scale = 2;
     std::vector<int> tilesize;
@@ -441,7 +649,7 @@ int main(int argc, char** argv)
 #if _WIN32
     setlocale(LC_ALL, "");
     wchar_t opt;
-    while ((opt = getopt(argc, argv, L"i:o:n:s:t:m:g:j:f:vxh")) != (wchar_t)-1)
+    while ((opt = getopt(argc, argv, L"i:o:a:b:n:s:t:m:g:j:f:vxh")) != (wchar_t)-1)
     {
         switch (opt)
         {
@@ -450,6 +658,12 @@ int main(int argc, char** argv)
             break;
         case L'o':
             outputpath = optarg;
+            break;
+        case L'a':
+            video_inputpath = optarg;
+            break;
+        case L'b':
+            video_outputpath = optarg;
             break;
         case L'n':
             noise = _wtoi(optarg);
@@ -487,7 +701,7 @@ int main(int argc, char** argv)
     }
 #else // _WIN32
     int opt;
-    while ((opt = getopt(argc, argv, "i:o:n:s:t:m:g:j:f:vxh")) != -1)
+    while ((opt = getopt(argc, argv, "i:o:a:b:n:s:t:m:g:j:f:vxh")) != -1)
     {
         switch (opt)
         {
@@ -496,6 +710,12 @@ int main(int argc, char** argv)
             break;
         case 'o':
             outputpath = optarg;
+            break;
+        case 'a':
+            video_inputpath = optarg;
+            break;
+        case 'b':
+            video_outputpath = optarg;
             break;
         case 'n':
             noise = atoi(optarg);
@@ -533,7 +753,19 @@ int main(int argc, char** argv)
     }
 #endif // _WIN32
 
+    bool video_mode = false;
+    bool empty_input = false;
     if (inputpath.empty() || outputpath.empty())
+    {
+        empty_input = true;
+        if (!video_inputpath.empty() && !video_outputpath.empty())
+        {
+            empty_input = false;
+            video_mode = true;
+        }
+    }
+
+    if (empty_input)
     {
         print_usage();
         return -1;
@@ -587,168 +819,113 @@ int main(int argc, char** argv)
         }
     }
 
-    if (!path_is_directory(outputpath))
-    {
-        // guess format from outputpath no matter what format argument specified
-        path_t ext = get_file_extension(outputpath);
+    int prepadding = 0;
+    path_t paramfullpath;
+    path_t modelfullpath;
 
-        if (ext == PATHSTR("png") || ext == PATHSTR("PNG"))
-        {
-            format = PATHSTR("png");
-        }
-        else if (ext == PATHSTR("webp") || ext == PATHSTR("WEBP"))
-        {
-            format = PATHSTR("webp");
-        }
-        else if (ext == PATHSTR("jpg") || ext == PATHSTR("JPG") || ext == PATHSTR("jpeg") || ext == PATHSTR("JPEG"))
-        {
-            format = PATHSTR("jpg");
-        }
-        else
-        {
-            fprintf(stderr, "invalid outputpath extension type\n");
-            return -1;
-        }
-    }
-
-    if (format != PATHSTR("png") && format != PATHSTR("webp") && format != PATHSTR("jpg"))
-    {
-        fprintf(stderr, "invalid format argument\n");
-        return -1;
-    }
-
+    // image mode
     // collect input and output filepath
     std::vector<path_t> input_files;
     std::vector<path_t> output_files;
+
+    if (!video_mode)
     {
-        if (path_is_directory(inputpath) && path_is_directory(outputpath))
+        if (!path_is_directory(outputpath))
         {
-            std::vector<path_t> filenames;
-            int lr = list_directory(inputpath, filenames);
-            if (lr != 0)
-                return -1;
+            // guess format from outputpath no matter what format argument specified
+            path_t ext = get_file_extension(outputpath);
 
-            const int count = filenames.size();
-            input_files.resize(count);
-            output_files.resize(count);
-
-            path_t last_filename;
-            path_t last_filename_noext;
-            for (int i=0; i<count; i++)
+            if (ext == PATHSTR("png") || ext == PATHSTR("PNG"))
             {
-                path_t filename = filenames[i];
-                path_t filename_noext = get_file_name_without_extension(filename);
-                path_t output_filename = filename_noext + PATHSTR('.') + format;
-
-                // filename list is sorted, check if output image path conflicts
-                if (filename_noext == last_filename_noext)
-                {
-                    path_t output_filename2 = filename + PATHSTR('.') + format;
-#if _WIN32
-                    fwprintf(stderr, L"both %ls and %ls output %ls ! %ls will output %ls\n", filename.c_str(), last_filename.c_str(), output_filename.c_str(), filename.c_str(), output_filename2.c_str());
-#else
-                    fprintf(stderr, "both %s and %s output %s ! %s will output %s\n", filename.c_str(), last_filename.c_str(), output_filename.c_str(), filename.c_str(), output_filename2.c_str());
-#endif
-                    output_filename = output_filename2;
-                }
-                else
-                {
-                    last_filename = filename;
-                    last_filename_noext = filename_noext;
-                }
-
-                input_files[i] = inputpath + PATHSTR('/') + filename;
-                output_files[i] = outputpath + PATHSTR('/') + output_filename;
+                format = PATHSTR("png");
+            }
+            else if (ext == PATHSTR("webp") || ext == PATHSTR("WEBP"))
+            {
+                format = PATHSTR("webp");
+            }
+            else if (ext == PATHSTR("jpg") || ext == PATHSTR("JPG") || ext == PATHSTR("jpeg") || ext == PATHSTR("JPEG"))
+            {
+                format = PATHSTR("jpg");
+            }
+            else
+            {
+                fprintf(stderr, "invalid outputpath extension type\n");
+                return -1;
             }
         }
-        else if (!path_is_directory(inputpath) && !path_is_directory(outputpath))
+
+        if (format != PATHSTR("png") && format != PATHSTR("webp") && format != PATHSTR("jpg"))
         {
-            input_files.push_back(inputpath);
-            output_files.push_back(outputpath);
-        }
-        else
-        {
-            fprintf(stderr, "inputpath and outputpath must be either file or directory at the same time\n");
+            fprintf(stderr, "invalid format argument\n");
             return -1;
         }
-    }
 
-    int prepadding = 0;
+        {
+            if (path_is_directory(inputpath) && path_is_directory(outputpath))
+            {
+                std::vector<path_t> filenames;
+                int lr = list_directory(inputpath, filenames);
+                if (lr != 0)
+                    return -1;
 
-    if (model.find(PATHSTR("models-cunet")) != path_t::npos)
-    {
-        if (noise == -1)
-        {
-            prepadding = 18;
-        }
-        else if (scale == 1)
-        {
-            prepadding = 28;
-        }
-        else if (scale == 2)
-        {
-            prepadding = 18;
-        }
-    }
-    else if (model.find(PATHSTR("models-upconv_7_anime_style_art_rgb")) != path_t::npos)
-    {
-        prepadding = 7;
-    }
-    else if (model.find(PATHSTR("models-upconv_7_photo")) != path_t::npos)
-    {
-        prepadding = 7;
-    }
-    else
-    {
-        fprintf(stderr, "unknown model dir type\n");
-        return -1;
-    }
+                const int count = filenames.size();
+                input_files.resize(count);
+                output_files.resize(count);
 
+                path_t last_filename;
+                path_t last_filename_noext;
+                for (int i=0; i<count; i++)
+                {
+                    path_t filename = filenames[i];
+                    path_t filename_noext = get_file_name_without_extension(filename);
+                    path_t output_filename = filename_noext + PATHSTR('.') + format;
+
+                    // filename list is sorted, check if output image path conflicts
+                    if (filename_noext == last_filename_noext)
+                    {
+                        path_t output_filename2 = filename + PATHSTR('.') + format;
 #if _WIN32
-    wchar_t parampath[256];
-    wchar_t modelpath[256];
-    if (noise == -1)
-    {
-        swprintf(parampath, 256, L"%s/scale2.0x_model.param", model.c_str());
-        swprintf(modelpath, 256, L"%s/scale2.0x_model.bin", model.c_str());
-    }
-    else if (scale == 1)
-    {
-        swprintf(parampath, 256, L"%s/noise%d_model.param", model.c_str(), noise);
-        swprintf(modelpath, 256, L"%s/noise%d_model.bin", model.c_str(), noise);
-    }
-    else if (scale == 2)
-    {
-        swprintf(parampath, 256, L"%s/noise%d_scale2.0x_model.param", model.c_str(), noise);
-        swprintf(modelpath, 256, L"%s/noise%d_scale2.0x_model.bin", model.c_str(), noise);
-    }
+                        fwprintf(stderr, L"both %ls and %ls output %ls ! %ls will output %ls\n", filename.c_str(), last_filename.c_str(), output_filename.c_str(), filename.c_str(), output_filename2.c_str());
 #else
-    char parampath[256];
-    char modelpath[256];
-    if (noise == -1)
-    {
-        sprintf(parampath, "%s/scale2.0x_model.param", model.c_str());
-        sprintf(modelpath, "%s/scale2.0x_model.bin", model.c_str());
-    }
-    else if (scale == 1)
-    {
-        sprintf(parampath, "%s/noise%d_model.param", model.c_str(), noise);
-        sprintf(modelpath, "%s/noise%d_model.bin", model.c_str(), noise);
-    }
-    else if (scale == 2)
-    {
-        sprintf(parampath, "%s/noise%d_scale2.0x_model.param", model.c_str(), noise);
-        sprintf(modelpath, "%s/noise%d_scale2.0x_model.bin", model.c_str(), noise);
-    }
+                        fprintf(stderr, "both %s and %s output %s ! %s will output %s\n", filename.c_str(), last_filename.c_str(), output_filename.c_str(), filename.c_str(), output_filename2.c_str());
 #endif
+                        output_filename = output_filename2;
+                    }
+                    else
+                    {
+                        last_filename = filename;
+                        last_filename_noext = filename_noext;
+                    }
 
-    path_t paramfullpath = sanitize_filepath(parampath);
-    path_t modelfullpath = sanitize_filepath(modelpath);
+                    input_files[i] = inputpath + PATHSTR('/') + filename;
+                    output_files[i] = outputpath + PATHSTR('/') + output_filename;
+                }
+            }
+            else if (!path_is_directory(inputpath) && !path_is_directory(outputpath))
+            {
+                input_files.push_back(inputpath);
+                output_files.push_back(outputpath);
+            }
+            else
+            {
+                fprintf(stderr, "inputpath and outputpath must be either file or directory at the same time\n");
+                return -1;
+            }
+        }
+    }
+
+    int ret = load_model_param(model, noise, scale, paramfullpath, modelfullpath, prepadding);
+    if (ret != 0)
+    {
+        return ret;
+    }
 
 #if _WIN32
     CoInitializeEx(NULL, COINIT_MULTITHREADED);
 #endif
 
+    // debug
+    setenv("VK_ICD_FILENAMES", "/Users/Cocoa/YouTube/MoltenVK_icd.json", 1);
     ncnn::create_gpu_instance();
 
     if (gpuid.empty())
@@ -842,13 +1019,24 @@ int main(int argc, char** argv)
 
         // main routine
         {
-            // load image
+            // load param
             LoadThreadParams ltp;
             ltp.scale = scale;
-            ltp.jobs_load = jobs_load;
-            ltp.input_files = input_files;
-            ltp.output_files = output_files;
-
+            ltp.video_mode = video_mode;
+            if (!video_mode)
+            {
+                ltp.jobs_load = jobs_load;
+                ltp.input_files = input_files;
+                ltp.output_files = output_files;
+            }
+            else
+            {
+                ltp.jobs_load = jobs_load;
+                ltp.input_video = video_inputpath;
+                ltp.output_video = video_outputpath;
+                ltp.jobs_save = jobs_save;
+                ltp.total_jobs_proc = total_jobs_proc;
+            }
             ncnn::Thread load_thread(load, (void*)&ltp);
 
             // waifu2x proc
@@ -880,32 +1068,44 @@ int main(int argc, char** argv)
                 save_threads[i] = new ncnn::Thread(save, (void*)&stp);
             }
 
+            if (video_mode) {
+                ltp.proc_threads = proc_threads;
+                ltp.save_threads = save_threads;
+            }
+
             // end
-            load_thread.join();
-
-            Task end;
-            end.id = -233;
-
-            for (int i=0; i<total_jobs_proc; i++)
+            if (!video_mode)
             {
-                toproc.put(end);
+                load_thread.join();
+
+                Task end;
+                end.id = -233;
+
+                for (int i=0; i<total_jobs_proc; i++)
+                {
+                    toproc.put(end);
+                }
+
+                for (int i=0; i<total_jobs_proc; i++)
+                {
+                    proc_threads[i]->join();
+                    delete proc_threads[i];
+                }
+
+                for (int i=0; i<jobs_save; i++)
+                {
+                    tosave.put(end);
+                }
+
+                for (int i=0; i<jobs_save; i++)
+                {
+                    save_threads[i]->join();
+                    delete save_threads[i];
+                }
             }
-
-            for (int i=0; i<total_jobs_proc; i++)
+            else
             {
-                proc_threads[i]->join();
-                delete proc_threads[i];
-            }
-
-            for (int i=0; i<jobs_save; i++)
-            {
-                tosave.put(end);
-            }
-
-            for (int i=0; i<jobs_save; i++)
-            {
-                save_threads[i]->join();
-                delete save_threads[i];
+                load_thread.join();
             }
         }
 

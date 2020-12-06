@@ -19,7 +19,11 @@ This package includes all the binaries and models required. It is portable, so n
 ### Example Command
 
 ```shell
+# image mode
 waifu2x-ncnn-vulkan.exe -i input.jpg -o output.png -n 2 -s 2
+
+# video mode
+waifu2x-ncnn-vulkan.exe -i input.mkv -o output.mkv -n 2 -s 2
 ```
 
 ### Full Usages
@@ -31,6 +35,8 @@ Usage: waifu2x-ncnn-vulkan -i infile -o outfile [options]...
   -v                   verbose output
   -i input-path        input image path (jpg/png/webp) or directory
   -o output-path       output image path (jpg/png/webp) or directory
+  -a video input       input video path
+  -b video output      output video path
   -n noise-level       denoise level (-1/0/1/2/3, default=0)
   -s scale             upscale ratio (1/2, default=2)
   -t tile-size         tile size (>=32/0=auto, default=0) can be 0,0,0 for multi-gpu
@@ -42,6 +48,8 @@ Usage: waifu2x-ncnn-vulkan -i infile -o outfile [options]...
 ```
 
 - `input-path` and `output-path` accept either file path or directory path
+- `video input` and `video output` accept video file path
+- if specified `input-path` and `output-path`, then `video input` and `video output` will be ignored
 - `noise-level` = noise level, large value means strong denoise effect, -1 = no effect
 - `scale` = scale level, 1 = no scaling, 2 = upscale 2x
 - `tile-size` = tile size, use smaller value to reduce GPU memory usage, default selects automatically

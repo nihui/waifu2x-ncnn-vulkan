@@ -14,6 +14,7 @@ option(USE_STATIC_MOLTENVK "link moltenvk static library" OFF)
 
 find_package(Threads)
 find_package(OpenMP)
+find_package(OpenCV REQUIRED)
 find_package(Vulkan REQUIRED)
 
 find_program(GLSLANGVALIDATOR_EXECUTABLE NAMES glslangValidator PATHS $ENV{VULKAN_SDK}/bin NO_CMAKE_FIND_ROOT_PATH)
@@ -67,6 +68,7 @@ macro(compile_shader SHADER_SRC)
 endmacro()
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include_directories(${OpenCV_INCLUDE_DIRS})
 
 if(OPENMP_FOUND)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
@@ -290,4 +292,4 @@ if(OPENMP_FOUND)
     list(APPEND WAIFU2X_LINK_LIBRARIES ${OpenMP_CXX_LIBRARIES})
 endif()
 
-target_link_libraries(waifu2x-ncnn-vulkan ${WAIFU2X_LINK_LIBRARIES})
+target_link_libraries(waifu2x-ncnn-vulkan ${WAIFU2X_LINK_LIBRARIES} opencv_core opencv_video opencv_videoio)

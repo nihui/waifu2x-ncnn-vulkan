@@ -787,7 +787,7 @@ int main(int argc, char** argv)
     int total_jobs_proc = 0;
     for (int i=0; i<use_gpu_count; i++)
     {
-        int gpu_queue_count = ncnn::get_gpu_info(gpuid[i]).compute_queue_count;
+        int gpu_queue_count = ncnn::get_gpu_info(gpuid[i]).compute_queue_count();
         jobs_proc[i] = std::min(jobs_proc[i], gpu_queue_count);
         total_jobs_proc += jobs_proc[i];
     }

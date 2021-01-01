@@ -1,0 +1,285 @@
+name: release
+on:
+  push:
+    tags:
+      - '*'
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_12.2.app/Contents/Developer
+  APPLICATION_NAME: waifu2x-ncnn-vulkan
+
+jobs:
+
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      APPNAME: ${{ steps.get_appname.outputs.APPNAME }}
+      VERSION: ${{ steps.get_version.outputs.VERSION }}
+    steps:
+    - name: get-appname
+      id: get_appname
+      run: echo ::set-output name=APPNAME::${APPLICATION_NAME}
+    - name: get-version
+      id: get_version
+      run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+
+  ubuntu:
+    needs: [setup]
+    runs-on: ubuntu-16.04
+    env:
+      PACKAGENAME: ${{ needs.setup.outputs.APPNAME }}-${{ needs.setup.outputs.VERSION }}-ubuntu
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: cache-vulkansdk
+      id: cache-vulkansdk
+      uses: actions/cache@v1
+      with:
+        path: "1.2.162.0"
+        key: vulkansdk-linux-x86_64-1.2.162.0
+    - name: vulkansdk
+      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.2.162.0/linux/vulkansdk-linux-x86_64-1.2.162.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.2.162.0.tar.gz
+        tar -xf vulkansdk-linux-x86_64-1.2.162.0.tar.gz
+        rm -rf 1.2.162.0/source 1.2.162.0/samples
+        find 1.2.162.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
+    - name: build
+      run: |
+        export VULKAN_SDK=`pwd`/1.2.162.0/x86_64
+        mkdir build && cd build
+        cmake ../src
+        cmake --build . -j 2
+    - name: package
+      run: |
+        mkdir -p ${{ env.PACKAGENAME }}
+        cp README.md LICENSE ${{ env.PACKAGENAME }}
+        cp build/${{ needs.setup.outputs.APPNAME }} ${{ env.PACKAGENAME }}
+        strip -g ${{ env.PACKAGENAME }}/${{ needs.setup.outputs.APPNAME }}
+        cp -r models/* ${{ env.PACKAGENAME }}
+        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+    - name: upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ env.PACKAGENAME }}
+        path: ${{ env.PACKAGENAME }}.zip
+
+  openmp-macos:
+    runs-on: macos-latest
+    steps:
+    - name: cache-openmp
+      id: cache-openmp
+      uses: actions/cache@v1
+      with:
+        path: openmp-install
+        key: openmp-macos-release-11.0.0
+    - name: checkout
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
+    - name: openmp
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/openmp-11.0.0.src.tar.xz
+        tar -xf openmp-11.0.0.src.tar.xz
+        cd openmp-11.0.0.src
+        sed -i'' -e '/.size __kmp_unnamed_critical_addr/d' runtime/src/z_Linux_asm.S
+        sed -i'' -e 's/__kmp_unnamed_critical_addr/___kmp_unnamed_critical_addr/g' runtime/src/z_Linux_asm.S
+    - name: build-x86_64
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        cd openmp-11.0.0.src
+        mkdir build-x86_64 && cd build-x86_64
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DCMAKE_OSX_ARCHITECTURES="x86_64" \
+            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+    - name: build-arm64
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        cd openmp-11.0.0.src
+        mkdir build-arm64 && cd build-arm64
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DCMAKE_OSX_ARCHITECTURES="arm64" \
+            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+    - name: merge-fat-library
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        rm -rf $GITHUB_WORKSPACE/openmp-install
+        mkdir -p $GITHUB_WORKSPACE/openmp-install
+        cp -r openmp-11.0.0.src/build-x86_64/install/include $GITHUB_WORKSPACE/openmp-install
+        mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
+        lipo -create openmp-11.0.0.src/build-x86_64/install/lib/libomp.a openmp-11.0.0.src/build-arm64/install/lib/libomp.a -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
+    - name: upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: openmp-macos
+        path: openmp-install
+
+  macos:
+    needs: [setup, openmp-macos]
+    runs-on: macos-latest
+    env:
+      PACKAGENAME: ${{ needs.setup.outputs.APPNAME }}-${{ needs.setup.outputs.VERSION }}-macos
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: download-openmp-macos
+      uses: actions/download-artifact@v2
+      with:
+        name: openmp-macos
+        path: openmp-macos
+    - name: install-openmp
+      run: |
+        sudo cp openmp-macos/include/* $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
+        sudo cp openmp-macos/lib/libomp.a $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib
+    - name: cache-vulkansdk
+      id: cache-vulkansdk
+      uses: actions/cache@v1
+      with:
+        path: "vulkansdk-macos-1.2.162.0"
+        key: vulkansdk-macos-1.2.162.0
+    - name: vulkansdk
+      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.2.162.0/mac/vulkansdk-macos-1.2.162.0.dmg?Human=true -O vulkansdk-macos-1.2.162.0.dmg
+        hdiutil attach vulkansdk-macos-1.2.162.0.dmg
+        cp -r /Volumes/vulkansdk-macos-1.2.162.0 .
+        rm -rf vulkansdk-macos-1.2.162.0/Applications
+        find vulkansdk-macos-1.2.162.0 -type f | grep -v -E 'vulkan|glslang|MoltenVK' | xargs rm
+        hdiutil detach /Volumes/vulkansdk-macos-1.2.162.0
+    - name: build-x86_64
+      run: |
+        export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.162.0/macOS
+        mkdir build-x86_64 && cd build-x86_64
+        cmake -DUSE_STATIC_MOLTENVK=ON -DCMAKE_OSX_ARCHITECTURES="x86_64" \
+            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
+            -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.2.162.0/MoltenVK/include \
+            -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.2.162.0/MoltenVK/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a \
+            ../src
+        cmake --build . -j 2
+    - name: build-arm64
+      run: |
+        export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.162.0/macOS
+        mkdir build-arm64 && cd build-arm64
+        cmake -DUSE_STATIC_MOLTENVK=ON -DCMAKE_OSX_ARCHITECTURES="arm64" \
+            -DCMAKE_CROSSCOMPILING=ON -DCMAKE_SYSTEM_PROCESSOR=arm64 \
+            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
+            -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.2.162.0/MoltenVK/include \
+            -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.2.162.0/MoltenVK/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a \
+            ../src
+        cmake --build . -j 2
+    - name: package
+      run: |
+        mkdir -p ${{ env.PACKAGENAME }}
+        cp README.md LICENSE ${{ env.PACKAGENAME }}
+        lipo -create build-x86_64/${{ needs.setup.outputs.APPNAME }} build-arm64/${{ needs.setup.outputs.APPNAME }} -o ${{ env.PACKAGENAME }}/${{ needs.setup.outputs.APPNAME }}
+        strip ${{ env.PACKAGENAME }}/${{ needs.setup.outputs.APPNAME }}
+        cp -r models/* ${{ env.PACKAGENAME }}
+        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+    - name: upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ env.PACKAGENAME }}
+        path: ${{ env.PACKAGENAME }}.zip
+
+  windows:
+    needs: [setup]
+    runs-on: windows-latest
+    env:
+      PACKAGENAME: ${{ needs.setup.outputs.APPNAME }}-${{ needs.setup.outputs.VERSION }}-windows
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: cache-vulkansdk
+      id: cache-vulkansdk
+      uses: actions/cache@v1
+      with:
+        path: "VulkanSDK"
+        key: VulkanSDK-1.2.162.0-Installer
+    - name: vulkansdk
+      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
+      run: |
+        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.2.162.0/windows/VulkanSDK-1.2.162.0-Installer.exe?Human=true -OutFile VulkanSDK-1.2.162.0-Installer.exe
+        7z x -aoa ./VulkanSDK-1.2.162.0-Installer.exe -oVulkanSDK
+        Remove-Item .\VulkanSDK\Demos, .\VulkanSDK\Samples, .\VulkanSDK\Third-Party, .\VulkanSDK\Tools, .\VulkanSDK\Tools32, .\VulkanSDK\Bin32, .\VulkanSDK\Lib32 -Recurse
+    - name: build
+      run: |
+        $env:VULKAN_SDK="$(pwd)/VulkanSDK"
+        mkdir build; cd build
+        cmake -A x64 ../src
+        cmake --build . --config Release -j 2
+    - name: package
+      run: |
+        mkdir ${{ env.PACKAGENAME }}
+        Copy-Item -Verbose -Path "README.md" -Destination "${{ env.PACKAGENAME }}"
+        Copy-Item -Verbose -Path "LICENSE" -Destination "${{ env.PACKAGENAME }}"
+        Copy-Item -Verbose -Path "build\Release\${{ needs.setup.outputs.APPNAME }}.exe" -Destination "${{ env.PACKAGENAME }}"
+        Copy-Item -Verbose -Path "C:\windows\system32\vcomp140.dll" -Destination "${{ env.PACKAGENAME }}"
+        Copy-Item -Verbose -Recurse -Path "models\*" -Destination "${{ env.PACKAGENAME }}"
+        7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+    - name: upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ env.PACKAGENAME }}
+        path: ${{ env.PACKAGENAME }}.zip
+
+  release:
+    needs: [setup, ubuntu, macos, windows]
+    runs-on: ubuntu-latest
+    steps:
+    - name: download
+      uses: actions/download-artifact@v2
+      with:
+        path: artifacts
+
+    - name: create-release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ needs.setup.outputs.VERSION }}
+        release_name: Release ${{ needs.setup.outputs.VERSION }}
+        draft: false
+        prerelease: false
+
+    - name: upload-ubuntu
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        PACKAGENAME: ${{ needs.setup.outputs.APPNAME }}-${{ needs.setup.outputs.VERSION }}-ubuntu
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/${{ env.PACKAGENAME }}/${{ env.PACKAGENAME }}.zip
+        asset_name: ${{ env.PACKAGENAME }}.zip
+        asset_content_type: application/zip
+
+    - name: upload-macos
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        PACKAGENAME: ${{ needs.setup.outputs.APPNAME }}-${{ needs.setup.outputs.VERSION }}-macos
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/${{ env.PACKAGENAME }}/${{ env.PACKAGENAME }}.zip
+        asset_name: ${{ env.PACKAGENAME }}.zip
+        asset_content_type: application/zip
+
+    - name: upload-windows
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        PACKAGENAME: ${{ needs.setup.outputs.APPNAME }}-${{ needs.setup.outputs.VERSION }}-windows
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/${{ env.PACKAGENAME }}/${{ env.PACKAGENAME }}.zip
+        asset_name: ${{ env.PACKAGENAME }}.zip
+        asset_content_type: application/zip

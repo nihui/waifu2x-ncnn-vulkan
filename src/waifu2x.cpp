@@ -5,55 +5,14 @@
 #include <algorithm>
 #include <vector>
 
-static const uint32_t waifu2x_preproc_spv_data[] = {
-    #include "waifu2x_preproc.spv.hex.h"
-};
-static const uint32_t waifu2x_preproc_fp16s_spv_data[] = {
-    #include "waifu2x_preproc_fp16s.spv.hex.h"
-};
-static const uint32_t waifu2x_preproc_int8s_spv_data[] = {
-    #include "waifu2x_preproc_int8s.spv.hex.h"
-};
-static const uint32_t waifu2x_postproc_spv_data[] = {
-    #include "waifu2x_postproc.spv.hex.h"
-};
-static const uint32_t waifu2x_postproc_fp16s_spv_data[] = {
-    #include "waifu2x_postproc_fp16s.spv.hex.h"
-};
-static const uint32_t waifu2x_postproc_int8s_spv_data[] = {
-    #include "waifu2x_postproc_int8s.spv.hex.h"
-};
-
-static const uint32_t waifu2x_preproc_tta_spv_data[] = {
-    #include "waifu2x_preproc_tta.spv.hex.h"
-};
-static const uint32_t waifu2x_preproc_tta_fp16s_spv_data[] = {
-    #include "waifu2x_preproc_tta_fp16s.spv.hex.h"
-};
-static const uint32_t waifu2x_preproc_tta_int8s_spv_data[] = {
-    #include "waifu2x_preproc_tta_int8s.spv.hex.h"
-};
-static const uint32_t waifu2x_postproc_tta_spv_data[] = {
-    #include "waifu2x_postproc_tta.spv.hex.h"
-};
-static const uint32_t waifu2x_postproc_tta_fp16s_spv_data[] = {
-    #include "waifu2x_postproc_tta_fp16s.spv.hex.h"
-};
-static const uint32_t waifu2x_postproc_tta_int8s_spv_data[] = {
-    #include "waifu2x_postproc_tta_int8s.spv.hex.h"
-};
+#include "waifu2x_preproc.comp.hex.h"
+#include "waifu2x_postproc.comp.hex.h"
+#include "waifu2x_preproc_tta.comp.hex.h"
+#include "waifu2x_postproc_tta.comp.hex.h"
 
 Waifu2x::Waifu2x(int gpuid, bool _tta_mode)
 {
-    net.opt.use_vulkan_compute = true;
-    net.opt.use_fp16_packed = true;
-    net.opt.use_fp16_storage = true;
-    net.opt.use_fp16_arithmetic = false;
-    net.opt.use_int8_storage = true;
-    net.opt.use_int8_arithmetic = false;
-
-    net.set_vulkan_device(gpuid);
-
+    vkdev = ncnn::get_gpu_device(gpuid);
     waifu2x_preproc = 0;
     waifu2x_postproc = 0;
     bicubic_2x = 0;
@@ -78,6 +37,17 @@ int Waifu2x::load(const std::wstring& parampath, const std::wstring& modelpath)
 int Waifu2x::load(const std::string& parampath, const std::string& modelpath)
 #endif
 {
+    ncnn::Option opt;
+    opt.use_vulkan_compute = true;
+    opt.use_fp16_packed = true;
+    opt.use_fp16_storage = true;
+    opt.use_fp16_arithmetic = false;
+    opt.use_int8_storage = true;
+
+    net.opt = opt;
+
+    net.set_vulkan_device(vkdev);
+
 #if _WIN32
     {
         FILE* fp = _wfopen(parampath.c_str(), L"rb");
@@ -115,50 +85,49 @@ int Waifu2x::load(const std::string& parampath, const std::string& modelpath)
         specializations[0].i = 0;
 #endif
 
-        waifu2x_preproc = new ncnn::Pipeline(net.vulkan_device());
-        waifu2x_preproc->set_optimal_local_size_xyz(32, 32, 3);
-
-        waifu2x_postproc = new ncnn::Pipeline(net.vulkan_device());
-        waifu2x_postproc->set_optimal_local_size_xyz(32, 32, 3);
-
-        if (tta_mode)
         {
-            if (net.opt.use_fp16_storage && net.opt.use_int8_storage)
-                waifu2x_preproc->create(waifu2x_preproc_tta_int8s_spv_data, sizeof(waifu2x_preproc_tta_int8s_spv_data), specializations);
-            else if (net.opt.use_fp16_storage)
-                waifu2x_preproc->create(waifu2x_preproc_tta_fp16s_spv_data, sizeof(waifu2x_preproc_tta_fp16s_spv_data), specializations);
-            else
-                waifu2x_preproc->create(waifu2x_preproc_tta_spv_data, sizeof(waifu2x_preproc_tta_spv_data), specializations);
+            static std::vector<uint32_t> spirv;
+            static ncnn::Mutex lock;
+            {
+                ncnn::MutexLockGuard guard(lock);
+                if (spirv.empty())
+                {
+                    if (tta_mode)
+                        compile_spirv_module(waifu2x_preproc_tta_comp_data, sizeof(waifu2x_preproc_tta_comp_data), opt, spirv);
+                    else
+                        compile_spirv_module(waifu2x_preproc_comp_data, sizeof(waifu2x_preproc_comp_data), opt, spirv);
+                }
+            }
 
-            if (net.opt.use_fp16_storage && net.opt.use_int8_storage)
-                waifu2x_postproc->create(waifu2x_postproc_tta_int8s_spv_data, sizeof(waifu2x_postproc_tta_int8s_spv_data), specializations);
-            else if (net.opt.use_fp16_storage)
-                waifu2x_postproc->create(waifu2x_postproc_tta_fp16s_spv_data, sizeof(waifu2x_postproc_tta_fp16s_spv_data), specializations);
-            else
-                waifu2x_postproc->create(waifu2x_postproc_tta_spv_data, sizeof(waifu2x_postproc_tta_spv_data), specializations);
+            waifu2x_preproc = new ncnn::Pipeline(vkdev);
+            waifu2x_preproc->set_optimal_local_size_xyz(8, 8, 3);
+            waifu2x_preproc->create(spirv.data(), spirv.size() * 4, specializations);
         }
-        else
-        {
-            if (net.opt.use_fp16_storage && net.opt.use_int8_storage)
-                waifu2x_preproc->create(waifu2x_preproc_int8s_spv_data, sizeof(waifu2x_preproc_int8s_spv_data), specializations);
-            else if (net.opt.use_fp16_storage)
-                waifu2x_preproc->create(waifu2x_preproc_fp16s_spv_data, sizeof(waifu2x_preproc_fp16s_spv_data), specializations);
-            else
-                waifu2x_preproc->create(waifu2x_preproc_spv_data, sizeof(waifu2x_preproc_spv_data), specializations);
 
-            if (net.opt.use_fp16_storage && net.opt.use_int8_storage)
-                waifu2x_postproc->create(waifu2x_postproc_int8s_spv_data, sizeof(waifu2x_postproc_int8s_spv_data), specializations);
-            else if (net.opt.use_fp16_storage)
-                waifu2x_postproc->create(waifu2x_postproc_fp16s_spv_data, sizeof(waifu2x_postproc_fp16s_spv_data), specializations);
-            else
-                waifu2x_postproc->create(waifu2x_postproc_spv_data, sizeof(waifu2x_postproc_spv_data), specializations);
+        {
+            static std::vector<uint32_t> spirv;
+            static ncnn::Mutex lock;
+            {
+                ncnn::MutexLockGuard guard(lock);
+                if (spirv.empty())
+                {
+                    if (tta_mode)
+                        compile_spirv_module(waifu2x_postproc_tta_comp_data, sizeof(waifu2x_postproc_tta_comp_data), opt, spirv);
+                    else
+                        compile_spirv_module(waifu2x_postproc_comp_data, sizeof(waifu2x_postproc_comp_data), opt, spirv);
+                }
+            }
+
+            waifu2x_postproc = new ncnn::Pipeline(vkdev);
+            waifu2x_postproc->set_optimal_local_size_xyz(8, 8, 3);
+            waifu2x_postproc->create(spirv.data(), spirv.size() * 4, specializations);
         }
     }
 
     // bicubic 2x for alpha channel
     {
         bicubic_2x = ncnn::create_layer("Interp");
-        bicubic_2x->vkdev = net.vulkan_device();
+        bicubic_2x->vkdev = vkdev;
 
         ncnn::ParamDict pd;
         pd.set(0, 3);// bicubic
@@ -188,8 +157,8 @@ int Waifu2x::process(const ncnn::Mat& inimage, ncnn::Mat& outimage) const
     const int TILE_SIZE_X = tilesize;
     const int TILE_SIZE_Y = tilesize;
 
-    ncnn::VkAllocator* blob_vkallocator = net.vulkan_device()->acquire_blob_allocator();
-    ncnn::VkAllocator* staging_vkallocator = net.vulkan_device()->acquire_staging_allocator();
+    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
+    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
 
     ncnn::Option opt = net.opt;
     opt.blob_vkallocator = blob_vkallocator;
@@ -245,7 +214,7 @@ int Waifu2x::process(const ncnn::Mat& inimage, ncnn::Mat& outimage) const
             }
         }
 
-        ncnn::VkCompute cmd(net.vulkan_device());
+        ncnn::VkCompute cmd(vkdev);
 
         // upload
         ncnn::VkMat in_gpu;
@@ -555,8 +524,8 @@ int Waifu2x::process(const ncnn::Mat& inimage, ncnn::Mat& outimage) const
         }
     }
 
-    net.vulkan_device()->reclaim_blob_allocator(blob_vkallocator);
-    net.vulkan_device()->reclaim_staging_allocator(staging_vkallocator);
+    vkdev->reclaim_blob_allocator(blob_vkallocator);
+    vkdev->reclaim_staging_allocator(staging_vkallocator);
 
     return 0;
 }

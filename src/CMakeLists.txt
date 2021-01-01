@@ -16,54 +16,20 @@ find_package(Threads)
 find_package(OpenMP)
 find_package(Vulkan REQUIRED)
 
-find_program(GLSLANGVALIDATOR_EXECUTABLE NAMES glslangValidator PATHS $ENV{VULKAN_SDK}/bin NO_CMAKE_FIND_ROOT_PATH)
-message(STATUS "Found glslangValidator: ${GLSLANGVALIDATOR_EXECUTABLE}")
-
-macro(compile_shader SHADER_SRC)
-    set(SHADER_SRC_FULLPATH ${CMAKE_CURRENT_SOURCE_DIR}/${SHADER_SRC})
-
+macro(waifu2x_add_shader SHADER_SRC)
     get_filename_component(SHADER_SRC_NAME_WE ${SHADER_SRC} NAME_WE)
-    set(SHADER_SPV_HEX_FILE ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_SRC_NAME_WE}.spv.hex.h)
+    set(SHADER_COMP_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_SRC_NAME_WE}.comp.hex.h)
+
     add_custom_command(
-        OUTPUT ${SHADER_SPV_HEX_FILE}
-        COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
-        ARGS -V -s -x -o ${SHADER_SPV_HEX_FILE} ${SHADER_SRC_FULLPATH}
-        DEPENDS ${SHADER_SRC_FULLPATH}
-        COMMENT "Building SPIR-V module ${SHADER_SRC_NAME_WE}.spv"
+        OUTPUT ${SHADER_COMP_HEADER}
+        COMMAND ${CMAKE_COMMAND} -DSHADER_SRC=${CMAKE_CURRENT_SOURCE_DIR}/${SHADER_SRC} -DSHADER_COMP_HEADER=${SHADER_COMP_HEADER} -P "${CMAKE_CURRENT_SOURCE_DIR}/generate_shader_comp_header.cmake"
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${SHADER_SRC}
+        COMMENT "Preprocessing shader source ${SHADER_SRC_NAME_WE}.comp"
         VERBATIM
     )
-    set_source_files_properties(${SHADER_SPV_HEX_FILE} PROPERTIES GENERATED TRUE)
-    list(APPEND SHADER_SPV_HEX_FILES ${SHADER_SPV_HEX_FILE})
+    set_source_files_properties(${SHADER_COMP_HEADER} PROPERTIES GENERATED TRUE)
 
-    # fp16 storage
-    set(SHADER_fp16s_SRC_NAME_WE "${SHADER_SRC_NAME_WE}_fp16s")
-
-    set(SHADER_fp16s_SPV_HEX_FILE ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_fp16s_SRC_NAME_WE}.spv.hex.h)
-    add_custom_command(
-        OUTPUT ${SHADER_fp16s_SPV_HEX_FILE}
-        COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
-        ARGS -DNCNN_fp16_storage=1 -V -s -x -o ${SHADER_fp16s_SPV_HEX_FILE} ${SHADER_SRC_FULLPATH}
-        DEPENDS ${SHADER_SRC_FULLPATH}
-        COMMENT "Building SPIR-V module ${SHADER_fp16s_SRC_NAME_WE}.spv"
-        VERBATIM
-    )
-    set_source_files_properties(${SHADER_fp16s_SPV_HEX_FILE} PROPERTIES GENERATED TRUE)
-    list(APPEND SHADER_SPV_HEX_FILES ${SHADER_fp16s_SPV_HEX_FILE})
-
-    # int8 storage
-    set(SHADER_int8s_SRC_NAME_WE "${SHADER_SRC_NAME_WE}_int8s")
-
-    set(SHADER_int8s_SPV_HEX_FILE ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_int8s_SRC_NAME_WE}.spv.hex.h)
-    add_custom_command(
-        OUTPUT ${SHADER_int8s_SPV_HEX_FILE}
-        COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
-        ARGS -DNCNN_fp16_storage=1 -DNCNN_int8_storage=1 -V -s -x -o ${SHADER_int8s_SPV_HEX_FILE} ${SHADER_SRC_FULLPATH}
-        DEPENDS ${SHADER_SRC_FULLPATH}
-        COMMENT "Building SPIR-V module ${SHADER_int8s_SRC_NAME_WE}.spv"
-        VERBATIM
-    )
-    set_source_files_properties(${SHADER_int8s_SPV_HEX_FILE} PROPERTIES GENERATED TRUE)
-    list(APPEND SHADER_SPV_HEX_FILES ${SHADER_int8s_SPV_HEX_FILE})
+    list(APPEND SHADER_SPV_HEX_FILES ${SHADER_COMP_HEADER})
 endmacro()
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
@@ -127,6 +93,7 @@ if(NOT USE_SYSTEM_NCNN)
 
     option(NCNN_INSTALL_SDK "" OFF)
     option(NCNN_PIXEL_ROTATE "" OFF)
+    option(NCNN_PIXEL_AFFINE "" OFF)
     option(NCNN_VULKAN "" ON)
     option(NCNN_VULKAN_ONLINE_SPIRV "" ON)
     option(NCNN_BUILD_BENCHMARK "" OFF)
@@ -210,6 +177,10 @@ if(NOT USE_SYSTEM_NCNN)
     option(WITH_LAYER_mish "" OFF)
     option(WITH_LAYER_statisticspooling "" OFF)
     option(WITH_LAYER_swish "" OFF)
+    option(WITH_LAYER_gemm "" OFF)
+    option(WITH_LAYER_groupnorm "" OFF)
+    option(WITH_LAYER_layernorm "" OFF)
+    option(WITH_LAYER_softplus "" OFF)
 
     add_subdirectory(ncnn)
 endif()
@@ -248,13 +219,10 @@ if(NOT USE_SYSTEM_WEBP)
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/libwebp/src)
 endif()
 
-# look for vulkan compute shader and compile
-set(SHADER_SPV_HEX_FILES)
-
-compile_shader(waifu2x_preproc.comp)
-compile_shader(waifu2x_postproc.comp)
-compile_shader(waifu2x_preproc_tta.comp)
-compile_shader(waifu2x_postproc_tta.comp)
+waifu2x_add_shader(waifu2x_preproc.comp)
+waifu2x_add_shader(waifu2x_postproc.comp)
+waifu2x_add_shader(waifu2x_preproc_tta.comp)
+waifu2x_add_shader(waifu2x_postproc_tta.comp)
 
 add_custom_target(generate-spirv DEPENDS ${SHADER_SPV_HEX_FILES})
 
@@ -284,10 +252,6 @@ if(USE_STATIC_MOLTENVK)
         ${Foundation}
         ${CoreFoundation}
     )
-endif()
-
-if(OPENMP_FOUND)
-    list(APPEND WAIFU2X_LINK_LIBRARIES ${OpenMP_CXX_LIBRARIES})
 endif()
 
 target_link_libraries(waifu2x-ncnn-vulkan ${WAIFU2X_LINK_LIBRARIES})

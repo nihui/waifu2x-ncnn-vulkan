@@ -32,6 +32,7 @@ public:
     int prepadding;
 
 private:
+    ncnn::VulkanDevice* vkdev;
     ncnn::Net net;
     ncnn::Pipeline* waifu2x_preproc;
     ncnn::Pipeline* waifu2x_postproc;

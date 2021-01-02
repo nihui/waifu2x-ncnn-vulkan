@@ -13,7 +13,7 @@
 class Waifu2x
 {
 public:
-    Waifu2x(int gpuid, bool tta_mode = false);
+    Waifu2x(int gpuid, bool tta_mode = false, int num_threads = 1);
     ~Waifu2x();
 
 #if _WIN32
@@ -23,6 +23,8 @@ public:
 #endif
 
     int process(const ncnn::Mat& inimage, ncnn::Mat& outimage) const;
+
+    int process_cpu(const ncnn::Mat& inimage, ncnn::Mat& outimage) const;
 
 public:
     // waifu2x parameters

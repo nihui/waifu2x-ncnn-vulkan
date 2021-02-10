@@ -106,7 +106,7 @@ static void print_usage()
     fprintf(stdout, "  -i input-path        input image path (jpg/png/webp) or directory\n");
     fprintf(stdout, "  -o output-path       output image path (jpg/png/webp) or directory\n");
     fprintf(stdout, "  -n noise-level       denoise level (-1/0/1/2/3, default=0)\n");
-    fprintf(stdout, "  -s scale             upscale ratio (1/2, default=2)\n");
+    fprintf(stdout, "  -s scale             upscale ratio (1/2/4/8/16/..., default=2)\n");
     fprintf(stdout, "  -t tile-size         tile size (>=32/0=auto, default=0) can be 0,0,0 for multi-gpu\n");
     fprintf(stdout, "  -m model-path        waifu2x model path (default=models-cunet)\n");
     fprintf(stdout, "  -g gpu-id            gpu device to use (-1=cpu, default=auto) can be 0,1,2 for multi-gpu\n");
@@ -126,6 +126,8 @@ public:
 
     ncnn::Mat inimage;
     ncnn::Mat outimage;
+
+    int scale_run_count;
 };
 
 class TaskQueue
@@ -270,6 +272,7 @@ void* load(void* args)
         {
             Task v;
             v.id = i;
+            v.scale_run_count = log2((double)scale);
             v.webp = webp;
             v.inpath = imagepath;
             v.outpath = ltp->output_files[i];
@@ -308,12 +311,14 @@ class ProcThreadParams
 {
 public:
     const Waifu2x* waifu2x;
+    int verbose;
 };
 
 void* proc(void* args)
 {
     const ProcThreadParams* ptp = (const ProcThreadParams*)args;
     const Waifu2x* waifu2x = ptp->waifu2x;
+    const int verbose = ptp->verbose;
 
     for (;;)
     {
@@ -324,7 +329,25 @@ void* proc(void* args)
         if (v.id == -233)
             break;
 
-        waifu2x->process(v.inimage, v.outimage);
+        for (int i = 0; i < v.scale_run_count; i++)
+        {
+            if (i != 0)
+            {
+                v.inimage.clone_from(v.outimage);
+            }
+            v.outimage.create(v.inimage.w * 2, v.inimage.h * 2, (size_t)v.inimage.elemsize, (int)v.inimage.elemsize);
+
+            if (verbose)
+            {
+#if _WIN32
+                fwprintf(stdout, L"scaling %ix%i %i to %ix%i %i\n", v.inimage.w, v.inimage.h, v.inimage.elemsize, v.outimage.w, v.outimage.h, v.outimage.elemsize);
+#else
+                fprintf(stdout, "scaling %ix%i %i to %ix%i %i\n", v.inimage.w, v.inimage.h, v.inimage.elemsize, v.outimage.w, v.outimage.h, v.outimage.elemsize);
+#endif
+            }
+
+            waifu2x->process(v.inimage, v.outimage);
+        }
 
         tosave.put(v);
     }
@@ -545,7 +568,7 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    if (scale < 1 || scale > 2)
+    if (scale < 1 || fmod(log2((double)scale), 1) != 0.0) // If is smaller than 1 or not a power of 2
     {
         fprintf(stderr, "invalid scale argument\n");
         return -1;
@@ -685,7 +708,7 @@ int main(int argc, char** argv)
         {
             prepadding = 28;
         }
-        else if (scale == 2)
+        else // if scale is bigger than 1
         {
             prepadding = 18;
         }
@@ -717,7 +740,7 @@ int main(int argc, char** argv)
         swprintf(parampath, 256, L"%s/noise%d_model.param", model.c_str(), noise);
         swprintf(modelpath, 256, L"%s/noise%d_model.bin", model.c_str(), noise);
     }
-    else if (scale == 2)
+    else // if scale is bigger than 1
     {
         swprintf(parampath, 256, L"%s/noise%d_scale2.0x_model.param", model.c_str(), noise);
         swprintf(modelpath, 256, L"%s/noise%d_scale2.0x_model.bin", model.c_str(), noise);
@@ -735,7 +758,7 @@ int main(int argc, char** argv)
         sprintf(parampath, "%s/noise%d_model.param", model.c_str(), noise);
         sprintf(modelpath, "%s/noise%d_model.bin", model.c_str(), noise);
     }
-    else if (scale == 2)
+    else // if scale is bigger than 1
     {
         sprintf(parampath, "%s/noise%d_scale2.0x_model.param", model.c_str(), noise);
         sprintf(modelpath, "%s/noise%d_scale2.0x_model.bin", model.c_str(), noise);
@@ -852,7 +875,7 @@ int main(int argc, char** argv)
             waifu2x[i]->load(paramfullpath, modelfullpath);
 
             waifu2x[i]->noise = noise;
-            waifu2x[i]->scale = scale;
+            waifu2x[i]->scale = (scale >= 2) ? 2 : scale;
             waifu2x[i]->tilesize = tilesize[i];
             waifu2x[i]->prepadding = prepadding;
         }
@@ -873,6 +896,7 @@ int main(int argc, char** argv)
             for (int i=0; i<use_gpu_count; i++)
             {
                 ptp[i].waifu2x = waifu2x[i];
+                ptp[i].verbose = verbose;
             }
 
             std::vector<ncnn::Thread*> proc_threads(total_jobs_proc);

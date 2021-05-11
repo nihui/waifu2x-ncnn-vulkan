@@ -387,23 +387,6 @@ void* save(void* args)
         if (v.id == -233)
             break;
 
-        // free input pixel data
-        {
-            unsigned char* pixeldata = (unsigned char*)v.inimage.data;
-            if (v.webp == 1)
-            {
-                free(pixeldata);
-            }
-            else
-            {
-#if _WIN32
-                free(pixeldata);
-#else
-                stbi_image_free(pixeldata);
-#endif
-            }
-        }
-
         int success = 0;
 
         path_t ext = get_file_extension(v.outpath);

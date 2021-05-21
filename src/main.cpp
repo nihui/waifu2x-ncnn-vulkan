@@ -120,6 +120,7 @@ class Task
 public:
     int id;
     int webp;
+    int scale;
 
     path_t inpath;
     path_t outpath;
@@ -271,11 +272,11 @@ void* load(void* args)
             Task v;
             v.id = i;
             v.webp = webp;
+            v.scale = scale;
             v.inpath = imagepath;
             v.outpath = ltp->output_files[i];
 
             v.inimage = ncnn::Mat(w, h, (void*)pixeldata, (size_t)c, c);
-            v.outimage = ncnn::Mat(w * scale, h * scale, (size_t)c, c);
 
             path_t ext = get_file_extension(v.outpath);
             if (c == 4 && (ext == PATHSTR("jpg") || ext == PATHSTR("JPG") || ext == PATHSTR("jpeg") || ext == PATHSTR("JPEG")))
@@ -324,9 +325,18 @@ void* proc(void* args)
         if (v.id == -233)
             break;
 
-        const int scale = v.outimage.w / v.inimage.w;
+        const int scale = v.scale;
+        if (scale == 1)
+        {
+            v.outimage = ncnn::Mat(v.inimage.w, v.inimage.h, (size_t)v.inimage.elemsize, (int)v.inimage.elemsize);
+            waifu2x->process(v.inimage, v.outimage);
+
+            tosave.put(v);
+            continue;
+        }
+
         int scale_run_count = 0;
-        if (scale == 1 || scale == 2)
+        if (scale == 2)
         {
             scale_run_count = 1;
         }
@@ -347,18 +357,14 @@ void* proc(void* args)
             scale_run_count = 5;
         }
 
-        for (int i = 0; i < scale_run_count; i++)
+        v.outimage = ncnn::Mat(v.inimage.w * 2, v.inimage.h * 2, (size_t)v.inimage.elemsize, (int)v.inimage.elemsize);
+        waifu2x->process(v.inimage, v.outimage);
+
+        for (int i = 1; i < scale_run_count; i++)
         {
-            if (i == scale_run_count - 1)
-            {
-                waifu2x->process(v.inimage, v.outimage);
-            }
-            else
-            {
-                ncnn::Mat tmpimage(v.inimage.w * 2, v.inimage.h * 2, (size_t)v.inimage.elemsize, (int)v.inimage.elemsize);
-                waifu2x->process(v.inimage, tmpimage);
-                v.inimage = tmpimage;
-            }
+            ncnn::Mat tmp = v.outimage;
+            v.outimage = ncnn::Mat(tmp.w * 2, tmp.h * 2, (size_t)v.inimage.elemsize, (int)v.inimage.elemsize);
+            waifu2x->process(tmp, v.outimage);
         }
 
         tosave.put(v);

@@ -829,8 +829,6 @@ int main(int argc, char** argv)
         }
         else
         {
-            int gpu_queue_count = ncnn::get_gpu_info(gpuid[i]).compute_queue_count();
-            jobs_proc[i] = std::min(jobs_proc[i], gpu_queue_count);
             total_jobs_proc += jobs_proc[i];
         }
     }

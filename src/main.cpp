@@ -132,9 +132,7 @@ public:
 class TaskQueue
 {
 public:
-    TaskQueue()
-    {
-    }
+    TaskQueue() = default;
 
     void put(const Task& v)
     {
@@ -690,12 +688,12 @@ int main(int argc, char** argv)
 #else
                     fprintf(stderr, "both %s and %s output %s ! %s will output %s\n", filename.c_str(), last_filename.c_str(), output_filename.c_str(), filename.c_str(), output_filename2.c_str());
 #endif
-                    output_filename = output_filename2;
+                    output_filename = std::move(output_filename2);
                 }
                 else
                 {
                     last_filename = filename;
-                    last_filename_noext = filename_noext;
+                    last_filename_noext = std::move(filename_noext);
                 }
 
                 input_files[i] = inputpath + PATHSTR('/') + filename;
@@ -902,8 +900,8 @@ int main(int argc, char** argv)
             LoadThreadParams ltp;
             ltp.scale = scale;
             ltp.jobs_load = jobs_load;
-            ltp.input_files = input_files;
-            ltp.output_files = output_files;
+            ltp.input_files = std::move(input_files);
+            ltp.output_files = std::move(output_files);
 
             ncnn::Thread load_thread(load, (void*)&ltp);
 

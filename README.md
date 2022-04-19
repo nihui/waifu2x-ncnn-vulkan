@@ -3,7 +3,7 @@
 ![CI](https://github.com/nihui/waifu2x-ncnn-vulkan/workflows/CI/badge.svg)
 ![download](https://img.shields.io/github/downloads/nihui/waifu2x-ncnn-vulkan/total.svg)
 
-ncnn implementation of waifu2x converter. Runs fast on Intel / AMD / Nvidia with Vulkan API.
+ncnn implementation of waifu2x converter. Runs fast on Intel / AMD / Nvidia / Apple-Silicon with Vulkan API.
 
 waifu2x-ncnn-vulkan uses [ncnn project](https://github.com/Tencent/ncnn) as the universal neural network inference framework.
 

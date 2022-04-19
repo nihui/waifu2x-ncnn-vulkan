@@ -826,6 +826,7 @@ int main(int argc, char** argv)
     }
 
     int total_jobs_proc = 0;
+    int jobs_proc_per_gpu[16] = {0};
     for (int i=0; i<use_gpu_count; i++)
     {
         if (gpuid[i] == -1)
@@ -836,6 +837,7 @@ int main(int argc, char** argv)
         else
         {
             total_jobs_proc += jobs_proc[i];
+            jobs_proc_per_gpu[gpuid[i]] += jobs_proc[i];
         }
     }
 
@@ -847,11 +849,17 @@ int main(int argc, char** argv)
         if (gpuid[i] == -1)
         {
             // cpu only
-            tilesize[i] = 4000;
+            tilesize[i] = 400;
             continue;
         }
 
         uint32_t heap_budget = ncnn::get_gpu_device(gpuid[i])->get_heap_budget();
+
+        if (path_is_directory(inputpath) && path_is_directory(outputpath))
+        {
+            // multiple gpu jobs share the same heap
+            heap_budget /= jobs_proc_per_gpu[gpuid[i]];
+        }
 
         // more fine-grained tilesize policy here
         if (model.find(PATHSTR("models-cunet")) != path_t::npos)

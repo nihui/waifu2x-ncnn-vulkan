@@ -7,7 +7,7 @@ project(waifu2x-ncnn-vulkan)
 cmake_minimum_required(VERSION 3.9)
 
 if(NOT CMAKE_BUILD_TYPE)
-    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY VALUE "Release")
+    set(CMAKE_BUILD_TYPE release CACHE STRING "Choose the type of build" FORCE)
 endif()
 
 option(USE_SYSTEM_NCNN "build with system libncnn" OFF)

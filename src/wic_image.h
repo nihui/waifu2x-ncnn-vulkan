@@ -9,6 +9,9 @@ unsigned char* wic_decode_image(const wchar_t* filepath, int* w, int* h, int* c)
     IWICImagingFactory* factory = 0;
     IWICBitmapDecoder* decoder = 0;
     IWICBitmapFrameDecode* frame = 0;
+    IWICPalette* palette = 0;
+    BOOL global_palette_has_alpha = FALSE;
+    BOOL frame_palette_has_alpha = FALSE;
     WICPixelFormatGUID pixel_format;
     IWICFormatConverter* converter = 0;
     IWICBitmap* bitmap = 0;
@@ -28,8 +31,23 @@ unsigned char* wic_decode_image(const wchar_t* filepath, int* w, int* h, int* c)
     if (factory->CreateDecoderFromFilename(filepath, 0, GENERIC_READ, WICDecodeMetadataCacheOnDemand, &decoder))
         goto RETURN;
 
+    if (factory->CreatePalette(&palette))
+        goto RETURN;
+
+    if (decoder->CopyPalette(palette) == S_OK)
+    {
+        if (palette->HasAlpha(&global_palette_has_alpha))
+            goto RETURN;
+    }
+
     if (decoder->GetFrame(0, &frame))
         goto RETURN;
+
+    if (frame->CopyPalette(palette) == S_OK)
+    {
+        if (palette->HasAlpha(&frame_palette_has_alpha))
+            goto RETURN;
+    }
 
     if (factory->CreateFormatConverter(&converter))
         goto RETURN;
@@ -39,6 +57,9 @@ unsigned char* wic_decode_image(const wchar_t* filepath, int* w, int* h, int* c)
 
     if (!IsEqualGUID(pixel_format, GUID_WICPixelFormat32bppBGRA))
         pixel_format = GUID_WICPixelFormat24bppBGR;
+
+    if (global_palette_has_alpha || frame_palette_has_alpha)
+        pixel_format = GUID_WICPixelFormat32bppBGRA;
 
     channels = IsEqualGUID(pixel_format, GUID_WICPixelFormat32bppBGRA) ? 4 : 3;
 
@@ -82,6 +103,7 @@ RETURN:
     if (bitmap) bitmap->Release();
     if (decoder) decoder->Release();
     if (frame) frame->Release();
+    if (palette) palette->Release();
     if (converter) converter->Release();
     if (factory) factory->Release();
 

@@ -199,6 +199,8 @@ if(NOT USE_SYSTEM_NCNN)
     option(WITH_LAYER_deconvolutiondepthwise1d "" OFF)
     option(WITH_LAYER_deconvolution3d "" OFF)
     option(WITH_LAYER_deconvolutiondepthwise3d "" OFF)
+    option(WITH_LAYER_einsum "" OFF)
+    option(WITH_LAYER_deformableconv2d "" OFF)
 
     add_subdirectory(ncnn)
 endif()

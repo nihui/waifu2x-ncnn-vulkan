@@ -66,7 +66,7 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-macos:
-    runs-on: macos-latest
+    runs-on: macos-11
     steps:
     - name: cache-openmp
       id: cache-openmp

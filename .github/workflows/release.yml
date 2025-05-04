@@ -124,7 +124,7 @@ jobs:
       run: |
         wget -q https://sdk.lunarg.com/sdk/download/${{ env.VULKANSDK_VERSION }}/mac/vulkansdk-macos-${{ env.VULKANSDK_VERSION }}.zip?Human=true -O vulkansdk-macos-${{ env.VULKANSDK_VERSION }}.zip
         unzip -q vulkansdk-macos-${{ env.VULKANSDK_VERSION }}.zip
-        sudo InstallVulkan.app/Contents/MacOS/InstallVulkan --root $GITHUB_WORKSPACE/${{ env.VULKANSDK_VERSION }} --accept-licenses --default-answer --confirm-command install
+        sudo InstallVulkan-${{ env.VULKANSDK_VERSION }}.app/Contents/MacOS/InstallVulkan-${{ env.VULKANSDK_VERSION }} --root $GITHUB_WORKSPACE/${{ env.VULKANSDK_VERSION }} --accept-licenses --default-answer --confirm-command install
     - name: build-x86_64
       run: |
         export VULKAN_SDK=$GITHUB_WORKSPACE/${{ env.VULKANSDK_VERSION }}/macOS

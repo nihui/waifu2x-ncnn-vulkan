@@ -3,8 +3,7 @@ set(CMAKE_POLICY_DEFAULT_CMP0091 NEW)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 project(waifu2x-ncnn-vulkan)
-
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.10)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE release CACHE STRING "Choose the type of build" FORCE)
@@ -98,7 +97,7 @@ if(NOT USE_SYSTEM_NCNN)
     option(NCNN_PIXEL_AFFINE "" OFF)
     option(NCNN_PIXEL_DRAWING "" OFF)
     option(NCNN_VULKAN "" ON)
-    option(NCNN_VULKAN_ONLINE_SPIRV "" ON)
+    option(NCNN_SIMPLEVK "" ON)
     option(NCNN_BUILD_BENCHMARK "" OFF)
     option(NCNN_BUILD_TESTS "" OFF)
     option(NCNN_BUILD_TOOLS "" OFF)
@@ -106,6 +105,7 @@ if(NOT USE_SYSTEM_NCNN)
     option(NCNN_DISABLE_RTTI "" ON)
     option(NCNN_DISABLE_EXCEPTION "" ON)
     option(NCNN_INT8 "" OFF)
+    option(NCNN_BF16 "" OFF)
 
     option(WITH_LAYER_absval "" OFF)
     option(WITH_LAYER_argmax "" OFF)
@@ -263,7 +263,7 @@ add_executable(waifu2x-ncnn-vulkan main.cpp waifu2x.cpp)
 
 add_dependencies(waifu2x-ncnn-vulkan generate-spirv)
 
-set(WAIFU2X_LINK_LIBRARIES ncnn webp ${Vulkan_LIBRARY})
+set(WAIFU2X_LINK_LIBRARIES ncnn webp)
 
 if(USE_STATIC_MOLTENVK)
     find_library(CoreFoundation NAMES CoreFoundation)
@@ -276,6 +276,7 @@ if(USE_STATIC_MOLTENVK)
     find_library(IOSurface NAMES IOSurface)
 
     list(APPEND WAIFU2X_LINK_LIBRARIES
+        ${Vulkan_LIBRARY}
         ${Metal}
         ${QuartzCore}
         ${CoreGraphics}

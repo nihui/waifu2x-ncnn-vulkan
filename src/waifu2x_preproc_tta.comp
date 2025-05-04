@@ -1,13 +1,6 @@
 
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-#define sfp float16_t
-#else
-#define sfp float
-#endif
-
 #if NCNN_int8_storage
 #extension GL_EXT_shader_8bit_storage: require
 #endif

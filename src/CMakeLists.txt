@@ -15,7 +15,6 @@ option(USE_STATIC_MOLTENVK "link moltenvk static library" OFF)
 
 find_package(Threads)
 find_package(OpenMP)
-find_package(Vulkan REQUIRED)
 
 macro(waifu2x_add_shader SHADER_SRC)
     get_filename_component(SHADER_SRC_NAME_WE ${SHADER_SRC} NAME_WE)

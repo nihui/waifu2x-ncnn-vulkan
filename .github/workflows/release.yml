@@ -129,7 +129,7 @@ jobs:
       run: |
         export VULKAN_SDK=$GITHUB_WORKSPACE/${{ env.VULKANSDK_VERSION }}/macOS
         mkdir build-x86_64 && cd build-x86_64
-        cmake -DUSE_STATIC_MOLTENVK=ON -DCMAKE_OSX_ARCHITECTURES="x86_64" \
+        cmake -DUSE_STATIC_MOLTENVK=ON -DCMAKE_SYSTEM_PROCESSOR="x86_64" -DCMAKE_OSX_ARCHITECTURES="x86_64" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \

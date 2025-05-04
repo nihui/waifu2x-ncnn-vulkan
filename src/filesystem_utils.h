@@ -49,7 +49,7 @@ static int list_directory(const path_t& dirpath, std::vector<path_t>& imagepaths
     struct _wdirent* ent = 0;
     while ((ent = _wreaddir(dir)))
     {
-        if (ent->d_type != DT_REG)
+        if (ent->d_type != DT_REG && ent->d_type != DT_LNK)
             continue;
 
         imagepaths.push_back(path_t(ent->d_name));
@@ -83,7 +83,7 @@ static int list_directory(const path_t& dirpath, std::vector<path_t>& imagepaths
     struct dirent* ent = 0;
     while ((ent = readdir(dir)))
     {
-        if (ent->d_type != DT_REG)
+        if (ent->d_type != DT_REG && ent->d_type != DT_LNK)
             continue;
 
         imagepaths.push_back(path_t(ent->d_name));

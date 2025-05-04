@@ -6,6 +6,9 @@ env:
   DEVELOPER_DIR: /Applications/Xcode_15.2.app/Contents/Developer
   UseMultiToolTask: true
 
+concurrency:
+  group: CI-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 
@@ -42,11 +45,9 @@ jobs:
         submodules: 'recursive'
     - name: vulkansdk
       run: |
-        wget -q https://sdk.lunarg.com/sdk/download/${{ env.VULKANSDK_VERSION }}/mac/vulkansdk-macos-${{ env.VULKANSDK_VERSION }}.dmg?Human=true -O vulkansdk-macos-${{ env.VULKANSDK_VERSION }}.dmg
-        hdiutil attach vulkansdk-macos-${{ env.VULKANSDK_VERSION }}.dmg
-        cp -r /Volumes/vulkansdk-macos-${{ env.VULKANSDK_VERSION }} .
-        hdiutil detach /Volumes/vulkansdk-macos-${{ env.VULKANSDK_VERSION }}
-        sudo vulkansdk-macos-${{ env.VULKANSDK_VERSION }}/InstallVulkan.app/Contents/MacOS/InstallVulkan --root $GITHUB_WORKSPACE/${{ env.VULKANSDK_VERSION }} --accept-licenses --default-answer --confirm-command install
+        wget -q https://sdk.lunarg.com/sdk/download/${{ env.VULKANSDK_VERSION }}/mac/vulkansdk-macos-${{ env.VULKANSDK_VERSION }}.zip?Human=true -O vulkansdk-macos-${{ env.VULKANSDK_VERSION }}.zip
+        unzip -q vulkansdk-macos-${{ env.VULKANSDK_VERSION }}.zip
+        sudo InstallVulkan.app/Contents/MacOS/InstallVulkan --root $GITHUB_WORKSPACE/${{ env.VULKANSDK_VERSION }} --accept-licenses --default-answer --confirm-command install
     - name: build-x86_64
       run: |
         export VULKAN_SDK=$GITHUB_WORKSPACE/${{ env.VULKANSDK_VERSION }}/macOS

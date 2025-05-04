@@ -20,7 +20,9 @@ jobs:
       run: echo "APPNAME=${APPLICATION_NAME}" >> $GITHUB_OUTPUT
     - name: get-version
       id: get_version
-      run: echo "VERSION=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
+      run: |
+        DATE=`date +'%Y%m%d'`
+        echo "VERSION=${DATE}" >> $GITHUB_OUTPUT
 
   ubuntu:
     needs: [setup]

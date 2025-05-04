@@ -2,7 +2,7 @@ name: CI
 on: [push, pull_request]
 
 env:
-  VULKANSDK_VERSION: 1.3.231.1
+  VULKANSDK_VERSION: 1.4.309.0
   DEVELOPER_DIR: /Applications/Xcode_15.2.app/Contents/Developer
   UseMultiToolTask: true
 

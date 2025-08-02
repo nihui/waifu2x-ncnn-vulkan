@@ -81,7 +81,7 @@ void main()
 
         if (gx >= 0 && gx < p.alphaw && gy >= 0 && gy < p.alphah)
         {
-            alpha_blob_data[gy * p.alphaw + gx] = sfp(v);
+            buffer_st1(alpha_blob_data, gy * p.alphaw + gx, v);
         }
     }
     else
@@ -92,13 +92,13 @@ void main()
 
         int gzi = gz * p.outcstep;
 
-        top_blob0_data[gzi + gy * p.outw + gx] = sfp(v);
-        top_blob1_data[gzi + gy * p.outw + (p.outw - 1 - gx)] = sfp(v);
-        top_blob2_data[gzi + (p.outh - 1 - gy) * p.outw + (p.outw - 1 - gx)] = sfp(v);
-        top_blob3_data[gzi + (p.outh - 1 - gy) * p.outw + gx] = sfp(v);
-        top_blob4_data[gzi + gx * p.outh + gy] = sfp(v);
-        top_blob5_data[gzi + gx * p.outh + (p.outh - 1 - gy)] = sfp(v);
-        top_blob6_data[gzi + (p.outw - 1 - gx) * p.outh + (p.outh - 1 - gy)] = sfp(v);
-        top_blob7_data[gzi + (p.outw - 1 - gx) * p.outh + gy] = sfp(v);
+        buffer_st1(top_blob0_data, gzi + gy * p.outw + gx, v);
+        buffer_st1(top_blob1_data, gzi + gy * p.outw + (p.outw - 1 - gx), v);
+        buffer_st1(top_blob2_data, gzi + (p.outh - 1 - gy) * p.outw + (p.outw - 1 - gx), v);
+        buffer_st1(top_blob3_data, gzi + (p.outh - 1 - gy) * p.outw + gx, v);
+        buffer_st1(top_blob4_data, gzi + gx * p.outh + gy, v);
+        buffer_st1(top_blob5_data, gzi + gx * p.outh + (p.outh - 1 - gy), v);
+        buffer_st1(top_blob6_data, gzi + (p.outw - 1 - gx) * p.outh + (p.outh - 1 - gy), v);
+        buffer_st1(top_blob7_data, gzi + (p.outw - 1 - gx) * p.outh + gy, v);
     }
 }

@@ -3,13 +3,13 @@
 ![CI](https://github.com/nihui/waifu2x-ncnn-vulkan/workflows/CI/badge.svg)
 ![download](https://img.shields.io/github/downloads/nihui/waifu2x-ncnn-vulkan/total.svg)
 
-ncnn implementation of waifu2x converter. Runs fast on Intel / AMD / Nvidia / Apple-Silicon with Vulkan API.
+ncnn implementation of waifu2x converter. Runs fast on Intel / AMD / NVIDIA / Apple-Silicon with Vulkan API.
 
 waifu2x-ncnn-vulkan uses [ncnn project](https://github.com/Tencent/ncnn) as the universal neural network inference framework.
 
 ## [Download](https://github.com/nihui/waifu2x-ncnn-vulkan/releases)
 
-Download Windows/Linux/MacOS Executable for Intel/AMD/Nvidia/Apple-Silicon GPU
+Download Windows/Linux/macOS Executable for Intel/AMD/NVIDIA/Apple-Silicon GPU
 
 **https://github.com/nihui/waifu2x-ncnn-vulkan/releases**
 
@@ -57,17 +57,7 @@ If you encounter a crash or error, try upgrading your GPU driver:
 
 ## Build from Source
 
-1. Download and setup the Vulkan SDK from https://vulkan.lunarg.com/
-  - For Linux distributions, you can either get the essential build requirements from package manager
-```shell
-dnf install vulkan-headers vulkan-loader-devel
-```
-```shell
-apt-get install libvulkan-dev
-```
-```shell
-pacman -S vulkan-headers vulkan-icd-loader
-```
+1. (macOS only) Download and setup the Vulkan SDK from https://vulkan.lunarg.com/
 
 2. Clone this project with all submodules
 
@@ -78,7 +68,7 @@ git submodule update --init --recursive
 ```
 
 3. Build with CMake
-  - You can pass -DUSE_STATIC_MOLTENVK=ON option to avoid linking the vulkan loader library on MacOS
+  - You can pass -DUSE_STATIC_MOLTENVK=ON option to avoid linking the vulkan loader library on macOS
 
 ```shell
 mkdir build
@@ -93,8 +83,8 @@ cmake --build . -j 4
 
 - Windows 10 1809
 - AMD R7-1700
-- Nvidia GTX-1070
-- Nvidia driver 419.67
+- NVIDIA GTX-1070
+- NVIDIA driver 419.67
 - CUDA 10.1.105
 - cuDNN 10.1
 
@@ -175,5 +165,7 @@ waifu2x-ncnn-vulkan.exe -i origin.jpg -o output.png -n 2 -s 2
 
 - https://github.com/Tencent/ncnn for fast neural network inference on ALL PLATFORMS
 - https://github.com/webmproject/libwebp for encoding and decoding Webp images on ALL PLATFORMS
-- https://github.com/nothings/stb for decoding and encoding image on Linux / MacOS
+- https://github.com/libjpeg-turbo/libjpeg-turbo for encoding and decoding JPEG images on ALL PLATFORMS
+- https://github.com/pnggroup/libpng for encoding and decoding PNG images on ALL PLATFORMS
+- https://github.com/zlib-ng/zlib-ng for encoding and decoding PNG images on ALL PLATFORMS
 - https://github.com/tronkko/dirent for listing files in directory on Windows

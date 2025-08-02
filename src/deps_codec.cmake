@@ -159,7 +159,7 @@ if(NOT USE_SYSTEM_PNG)
             INSTALL_COMMAND ${CMAKE_COMMAND} --install <BINARY_DIR> --config ${CMAKE_BUILD_TYPE}
         )
 
-        add_dependencies(libpng zlib-ng)
+        add_dependencies(deps-libpng deps-zlib-ng)
     endif()
 
     add_dependencies(waifu2x-ncnn-vulkan deps-libpng)

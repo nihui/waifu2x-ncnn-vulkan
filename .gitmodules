@@ -4,3 +4,12 @@
 [submodule "src/libwebp"]
 	path = src/libwebp
 	url = https://github.com/webmproject/libwebp.git
+[submodule "src/libjpeg-turbo"]
+	path = src/libjpeg-turbo
+	url = https://github.com/libjpeg-turbo/libjpeg-turbo.git
+[submodule "src/libpng"]
+	path = src/libpng
+	url = https://github.com/pnggroup/libpng.git
+[submodule "src/zlib-ng"]
+	path = src/zlib-ng
+	url = https://github.com/zlib-ng/zlib-ng.git

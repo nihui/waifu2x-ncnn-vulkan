@@ -1,6 +1,7 @@
 // waifu2x implemented with ncnn library
 
 #include <stdio.h>
+#include <string.h>
 #include <algorithm>
 #include <queue>
 #include <vector>
@@ -10,17 +11,9 @@
 // image decoder and encoder with wic
 #include "wic_image.h"
 #else // _WIN32
-// image decoder and encoder with stb
-#define STB_IMAGE_IMPLEMENTATION
-#define STBI_NO_PSD
-#define STBI_NO_TGA
-#define STBI_NO_GIF
-#define STBI_NO_HDR
-#define STBI_NO_PIC
-#define STBI_NO_STDIO
-#include "stb_image.h"
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write.h"
+// image decoder and encoder with libjpeg and libpng
+#include "jpeg_image.h"
+#include "png_image.h"
 #endif // _WIN32
 #include "webp_image.h"
 
@@ -119,7 +112,6 @@ class Task
 {
 public:
     int id;
-    int webp;
     int scale;
 
     path_t inpath;
@@ -200,8 +192,6 @@ void* load(void* args)
     {
         const path_t& imagepath = ltp->input_files[i];
 
-        int webp = 0;
-
         unsigned char* pixeldata = 0;
         int w;
         int h;
@@ -232,34 +222,16 @@ void* load(void* args)
             if (filedata)
             {
                 pixeldata = webp_load(filedata, length, &w, &h, &c);
-                if (pixeldata)
-                {
-                    webp = 1;
-                }
-                else
+                if (!pixeldata)
                 {
                     // not webp, try jpg png etc.
 #if _WIN32
                     pixeldata = wic_decode_image(imagepath.c_str(), &w, &h, &c);
 #else // _WIN32
-                    pixeldata = stbi_load_from_memory(filedata, length, &w, &h, &c, 0);
-                    if (pixeldata)
+                    pixeldata = jpeg_load(filedata, length, &w, &h, &c);
+                    if (!pixeldata)
                     {
-                        // stb_image auto channel
-                        if (c == 1)
-                        {
-                            // grayscale -> rgb
-                            stbi_image_free(pixeldata);
-                            pixeldata = stbi_load_from_memory(filedata, length, &w, &h, &c, 3);
-                            c = 3;
-                        }
-                        else if (c == 2)
-                        {
-                            // grayscale + alpha -> rgba
-                            stbi_image_free(pixeldata);
-                            pixeldata = stbi_load_from_memory(filedata, length, &w, &h, &c, 4);
-                            c = 4;
-                        }
+                        pixeldata = png_load(filedata, length, &w, &h, &c);
                     }
 #endif // _WIN32
                 }
@@ -271,7 +243,6 @@ void* load(void* args)
         {
             Task v;
             v.id = i;
-            v.webp = webp;
             v.scale = scale;
             v.inpath = imagepath;
             v.outpath = ltp->output_files[i];
@@ -396,18 +367,7 @@ void* save(void* args)
         // free input pixel data
         {
             unsigned char* pixeldata = (unsigned char*)v.inimage.data;
-            if (v.webp == 1)
-            {
-                free(pixeldata);
-            }
-            else
-            {
-#if _WIN32
-                free(pixeldata);
-#else
-                stbi_image_free(pixeldata);
-#endif
-            }
+            free(pixeldata);
         }
 
         int success = 0;
@@ -423,7 +383,7 @@ void* save(void* args)
 #if _WIN32
             success = wic_encode_image(v.outpath.c_str(), v.outimage.w, v.outimage.h, v.outimage.elempack, v.outimage.data);
 #else
-            success = stbi_write_png(v.outpath.c_str(), v.outimage.w, v.outimage.h, v.outimage.elempack, v.outimage.data, 0);
+            success = png_save(v.outpath.c_str(), v.outimage.w, v.outimage.h, v.outimage.elempack, (const unsigned char*)v.outimage.data);
 #endif
         }
         else if (ext == PATHSTR("jpg") || ext == PATHSTR("JPG") || ext == PATHSTR("jpeg") || ext == PATHSTR("JPEG"))
@@ -431,7 +391,7 @@ void* save(void* args)
 #if _WIN32
             success = wic_encode_jpeg_image(v.outpath.c_str(), v.outimage.w, v.outimage.h, v.outimage.elempack, v.outimage.data);
 #else
-            success = stbi_write_jpg(v.outpath.c_str(), v.outimage.w, v.outimage.h, v.outimage.elempack, v.outimage.data, 100);
+            success = jpeg_save(v.outpath.c_str(), v.outimage.w, v.outimage.h, v.outimage.elempack, (const unsigned char*)v.outimage.data);
 #endif
         }
         if (success)

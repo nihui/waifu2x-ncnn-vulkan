@@ -22,7 +22,7 @@ unsigned char* wic_decode_image(const wchar_t* filepath, int* w, int* h, int* c)
     WICRect rect = { 0, 0, 0, 0 };
     unsigned int datasize = 0;
     unsigned char* data = 0;
-    int stride = 0;
+    size_t stride = 0;
     unsigned char* bgrdata = 0;
 
     if (CoCreateInstance(CLSID_WICImagingFactory1, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&factory)))
@@ -89,9 +89,9 @@ unsigned char* wic_decode_image(const wchar_t* filepath, int* w, int* h, int* c)
 
     for (int y = 0; y < height; y++)
     {
-        const unsigned char* ptr = data + y * stride;
-        unsigned char* bgrptr = bgrdata + y * width * channels;
-        memcpy(bgrptr, ptr, width * channels);
+        const unsigned char* ptr = data + (size_t)y * stride;
+        unsigned char* bgrptr = bgrdata + (size_t)y * width * channels;
+        memcpy(bgrptr, ptr, (size_t)width * channels);
     }
 
     *w = width;
@@ -117,7 +117,7 @@ int wic_encode_image(const wchar_t* filepath, int w, int h, int c, void* bgrdata
     IWICBitmapEncoder* encoder = 0;
     IWICBitmapFrameEncode* frame = 0;
     WICPixelFormatGUID format = c == 4 ? GUID_WICPixelFormat32bppBGRA : GUID_WICPixelFormat24bppBGR;
-    int stride = (w * c * 8 + 7) / 8;
+    size_t stride = ((size_t)w * c * 8 + 7) / 8;
     unsigned char* data = 0;
     int ret = 0;
 
@@ -157,12 +157,12 @@ int wic_encode_image(const wchar_t* filepath, int w, int h, int c, void* bgrdata
 
     for (int y = 0; y < h; y++)
     {
-        const unsigned char* bgrptr = (const unsigned char*)bgrdata + y * w * c;
-        unsigned char* ptr = data + y * stride;
-        memcpy(ptr, bgrptr, w * c);
+        const unsigned char* bgrptr = (const unsigned char*)bgrdata + (size_t)y * w * c;
+        unsigned char* ptr = data + (size_t)y * stride;
+        memcpy(ptr, bgrptr, (size_t)w * c);
     }
 
-    if (frame->WritePixels(h, stride, h * stride, data))
+    if (frame->WritePixels(h, stride, (size_t)h * stride, data))
         goto RETURN;
 
     if (frame->Commit())
@@ -193,7 +193,7 @@ int wic_encode_jpeg_image(const wchar_t* filepath, int w, int h, int c, void* bg
     IWICBitmapFrameEncode* frame = 0;
     IPropertyBag2* propertybag = 0;
     WICPixelFormatGUID format = GUID_WICPixelFormat24bppBGR;
-    int stride = (w * c * 8 + 7) / 8;
+    size_t stride = ((size_t)w * c * 8 + 7) / 8;
     unsigned char* data = 0;
     int ret = 0;
 
@@ -243,12 +243,12 @@ int wic_encode_jpeg_image(const wchar_t* filepath, int w, int h, int c, void* bg
 
     for (int y = 0; y < h; y++)
     {
-        const unsigned char* bgrptr = (const unsigned char*)bgrdata + y * w * c;
-        unsigned char* ptr = data + y * stride;
-        memcpy(ptr, bgrptr, w * c);
+        const unsigned char* bgrptr = (const unsigned char*)bgrdata + (size_t)y * w * c;
+        unsigned char* ptr = data + (size_t)y * stride;
+        memcpy(ptr, bgrptr, (size_t)w * c);
     }
 
-    if (frame->WritePixels(h, stride, h * stride, data))
+    if (frame->WritePixels(h, stride, (size_t)h * stride, data))
         goto RETURN;
 
     if (frame->Commit())

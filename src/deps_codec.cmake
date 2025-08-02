@@ -61,8 +61,8 @@ if(NOT USE_SYSTEM_JPEG)
 
     add_dependencies(waifu2x-ncnn-vulkan libjpeg-turbo)
 
-    target_include_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/include")
-    target_link_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/lib64")
+    target_include_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/${CMAKE_INSTALL_INCLUDEDIR}")
+    target_link_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/${CMAKE_INSTALL_LIBDIR}")
     set(JPEG_LIBRARIES jpeg)
 endif()
 
@@ -99,8 +99,8 @@ if(NOT USE_SYSTEM_ZLIB)
 
     add_dependencies(waifu2x-ncnn-vulkan zlib-ng)
 
-    target_include_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/include")
-    target_link_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/lib64")
+    target_include_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/${CMAKE_INSTALL_INCLUDEDIR}")
+    target_link_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/${CMAKE_INSTALL_LIBDIR}")
     set(ZLIB_LIBRARIES z)
 endif()
 
@@ -152,8 +152,8 @@ if(NOT USE_SYSTEM_PNG)
 
     add_dependencies(waifu2x-ncnn-vulkan libpng)
 
-    target_include_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/include")
-    target_link_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/lib64")
+    target_include_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/${CMAKE_INSTALL_INCLUDEDIR}")
+    target_link_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/${CMAKE_INSTALL_LIBDIR}")
     set(PNG_LIBRARIES png)
 endif()
 
@@ -192,8 +192,8 @@ if(NOT USE_SYSTEM_WEBP)
 
     add_dependencies(waifu2x-ncnn-vulkan libwebp)
 
-    target_include_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/include")
-    target_link_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/lib64")
+    target_include_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/${CMAKE_INSTALL_INCLUDEDIR}")
+    target_link_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/${CMAKE_INSTALL_LIBDIR}")
     set(WebP_LIBRARIES webp webpdecoder webpdemux webpmux sharpyuv)
 endif()
 

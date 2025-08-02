@@ -35,6 +35,22 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
+    - name: create-dummy-setup.py
+      run: |
+        cat << EOF > setup.py
+        from setuptools import setup, find_packages
+        from setuptools.dist import Distribution
+        class BinaryDistribution(Distribution):
+            def has_ext_modules(foo):
+                return True
+        setup(
+            name='waifu2x-ncnn-vulkan',
+            version='0.1',
+            packages=find_packages(),
+            distclass=BinaryDistribution
+        )
+        EOF
+
     - name: build
       uses: pypa/cibuildwheel@v3.1.1
       env:

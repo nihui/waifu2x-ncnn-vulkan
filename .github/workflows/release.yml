@@ -1,8 +1,8 @@
 name: release
-# on: workflow_dispatch
-on:
-  pull_request:
-    branches: [master]
+on: workflow_dispatch
+# on:
+#   pull_request:
+#     branches: [master]
 
 env:
   VULKANSDK_VERSION: 1.4.309.0
@@ -220,19 +220,19 @@ jobs:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
 
-  # release:
-  #   needs: [setup, linux, macos, windows]
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #   - name: download
-  #     uses: actions/download-artifact@v4
-  #     with:
-  #       path: artifacts
-  #
-  #   - name: create-release
-  #     uses: softprops/action-gh-release@v2
-  #     with:
-  #       token: ${{ secrets.GITHUB_TOKEN }}
-  #       tag_name: ${{ needs.setup.outputs.VERSION }}
-  #       name: Release ${{ needs.setup.outputs.VERSION }}
-  #       files: artifacts/*/*.zip
+  release:
+    needs: [setup, linux, macos, windows]
+    runs-on: ubuntu-latest
+    steps:
+    - name: download
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: create-release
+      uses: softprops/action-gh-release@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        tag_name: ${{ needs.setup.outputs.VERSION }}
+        name: Release ${{ needs.setup.outputs.VERSION }}
+        files: artifacts/*/*.zip

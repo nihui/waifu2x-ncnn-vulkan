@@ -42,7 +42,7 @@ jobs:
             def has_ext_modules(foo):
                 return True
         setup(
-            name='waifu2x-ncnn-vulkan',
+            name='dummy',
             version='0.1',
             packages=find_packages(),
             distclass=BinaryDistribution
@@ -59,7 +59,8 @@ jobs:
         CIBW_BEFORE_ALL: cd /project/ &&
           mkdir build && cd build &&
           cmake ../src &&
-          cmake --build . -j $(nproc)
+          cmake --build . -j $(nproc) &&
+          mv ${{ needs.setup.outputs.APPNAME }} /host/tmp/
       with:
         output-dir: wheelhouse3
 
@@ -67,7 +68,7 @@ jobs:
       run: |
         mkdir -p ${{ env.PACKAGENAME }}
         cp README.md LICENSE ${{ env.PACKAGENAME }}
-        cp build/${{ needs.setup.outputs.APPNAME }} ${{ env.PACKAGENAME }}
+        cp /tmp/${{ needs.setup.outputs.APPNAME }} ${{ env.PACKAGENAME }}
         strip -g ${{ env.PACKAGENAME }}/${{ needs.setup.outputs.APPNAME }}
         cp -r models/* ${{ env.PACKAGENAME }}
         zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}

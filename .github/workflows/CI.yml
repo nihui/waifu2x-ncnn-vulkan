@@ -44,7 +44,7 @@ jobs:
             def has_ext_modules(foo):
                 return True
         setup(
-            name='waifu2x-ncnn-vulkan',
+            name='dummy',
             version='0.1',
             packages=find_packages(),
             distclass=BinaryDistribution
@@ -61,13 +61,14 @@ jobs:
         CIBW_BEFORE_ALL: cd /project/ &&
           mkdir build && cd build &&
           cmake ../src &&
-          cmake --build . -j $(nproc)
+          cmake --build . -j $(nproc) &&
+          mv waifu2x-ncnn-vulkan /host/tmp/
       with:
         output-dir: wheelhouse3
     - name: list
       run: |
         ls -l
-        ls -l build/
+        ls -l /tmp/
 
   macos:
     runs-on: macos-13

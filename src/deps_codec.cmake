@@ -45,7 +45,7 @@ if(NOT USE_SYSTEM_JPEG)
 
     include(ExternalProject)
 
-    ExternalProject_Add(libjpeg-turbo
+    ExternalProject_Add(deps-libjpeg-turbo
         SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libjpeg-turbo"
         BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/libjpeg-turbo"
         INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/deps-install"
@@ -60,7 +60,7 @@ if(NOT USE_SYSTEM_JPEG)
         INSTALL_COMMAND ${CMAKE_COMMAND} --install <BINARY_DIR> --config ${CMAKE_BUILD_TYPE}
     )
 
-    add_dependencies(waifu2x-ncnn-vulkan libjpeg-turbo)
+    add_dependencies(waifu2x-ncnn-vulkan deps-libjpeg-turbo)
 
     target_include_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/${CMAKE_INSTALL_INCLUDEDIR}")
     target_link_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/${CMAKE_INSTALL_LIBDIR}")
@@ -79,7 +79,7 @@ if(NOT USE_SYSTEM_ZLIB)
 
     include(ExternalProject)
 
-    ExternalProject_Add(zlib-ng
+    ExternalProject_Add(deps-zlib-ng
         SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/zlib-ng"
         BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/zlib-ng"
         INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/deps-install"
@@ -103,7 +103,7 @@ if(NOT USE_SYSTEM_ZLIB)
         INSTALL_COMMAND ${CMAKE_COMMAND} --install <BINARY_DIR> --config ${CMAKE_BUILD_TYPE}
     )
 
-    add_dependencies(waifu2x-ncnn-vulkan zlib-ng)
+    add_dependencies(waifu2x-ncnn-vulkan deps-zlib-ng)
 
     target_include_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/${CMAKE_INSTALL_INCLUDEDIR}")
     target_link_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/${CMAKE_INSTALL_LIBDIR}")
@@ -123,7 +123,7 @@ if(NOT USE_SYSTEM_PNG)
     include(ExternalProject)
 
     if(USE_SYSTEM_ZLIB)
-        ExternalProject_Add(libpng
+        ExternalProject_Add(deps-libpng
             SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libpng"
             BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/libpng"
             INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/deps-install"
@@ -140,7 +140,7 @@ if(NOT USE_SYSTEM_PNG)
             INSTALL_COMMAND ${CMAKE_COMMAND} --install <BINARY_DIR> --config ${CMAKE_BUILD_TYPE}
         )
     else()
-        ExternalProject_Add(libpng
+        ExternalProject_Add(deps-libpng
             SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libpng"
             BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/libpng"
             INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/deps-install"
@@ -162,7 +162,7 @@ if(NOT USE_SYSTEM_PNG)
         add_dependencies(libpng zlib-ng)
     endif()
 
-    add_dependencies(waifu2x-ncnn-vulkan libpng)
+    add_dependencies(waifu2x-ncnn-vulkan deps-libpng)
 
     target_include_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/${CMAKE_INSTALL_INCLUDEDIR}")
     target_link_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/${CMAKE_INSTALL_LIBDIR}")
@@ -181,7 +181,7 @@ if(NOT USE_SYSTEM_WEBP)
 
     include(ExternalProject)
 
-    ExternalProject_Add(libwebp
+    ExternalProject_Add(deps-libwebp
         SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libwebp"
         BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/libwebp"
         INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/deps-install"
@@ -207,7 +207,7 @@ if(NOT USE_SYSTEM_WEBP)
         INSTALL_COMMAND ${CMAKE_COMMAND} --install <BINARY_DIR> --config ${CMAKE_BUILD_TYPE}
     )
 
-    add_dependencies(waifu2x-ncnn-vulkan libwebp)
+    add_dependencies(waifu2x-ncnn-vulkan deps-libwebp)
 
     target_include_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/${CMAKE_INSTALL_INCLUDEDIR}")
     target_link_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/${CMAKE_INSTALL_LIBDIR}")

@@ -1,5 +1,8 @@
 name: release
-on: workflow_dispatch
+# on: workflow_dispatch
+on:
+  pull_request:
+    branches: [master]
 
 env:
   VULKANSDK_VERSION: 1.4.309.0
@@ -41,12 +44,7 @@ jobs:
         class BinaryDistribution(Distribution):
             def has_ext_modules(foo):
                 return True
-        setup(
-            name='dummy',
-            version='0.1',
-            packages=find_packages(),
-            distclass=BinaryDistribution
-        )
+        setup(name='dummy', version='0.1', packages=find_packages(), distclass=BinaryDistribution)
         EOF
 
     - name: build
@@ -58,9 +56,9 @@ jobs:
         CIBW_REPAIR_WHEEL_COMMAND: ""
         CIBW_BEFORE_ALL: cd /project/ &&
           mkdir build && cd build &&
-          cmake ../src &&
+          cmake -DCMAKE_INSTALL_PREFIX=/host/tmp/install ../src &&
           cmake --build . -j $(nproc) &&
-          mv ${{ needs.setup.outputs.APPNAME }} /host/tmp/
+          cmake --build . --target install/strip
       with:
         output-dir: wheelhouse3
 
@@ -68,7 +66,7 @@ jobs:
       run: |
         mkdir -p ${{ env.PACKAGENAME }}
         cp README.md LICENSE ${{ env.PACKAGENAME }}
-        cp /tmp/${{ needs.setup.outputs.APPNAME }} ${{ env.PACKAGENAME }}
+        cp /tmp/install/bin/${{ needs.setup.outputs.APPNAME }} ${{ env.PACKAGENAME }}
         strip -g ${{ env.PACKAGENAME }}/${{ needs.setup.outputs.APPNAME }}
         cp -r models/* ${{ env.PACKAGENAME }}
         zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
@@ -157,18 +155,19 @@ jobs:
       run: |
         export VULKAN_SDK=$GITHUB_WORKSPACE/${{ env.VULKANSDK_VERSION }}/macOS
         mkdir build-x86_64 && cd build-x86_64
-        cmake -DUSE_STATIC_MOLTENVK=ON -DCMAKE_OSX_ARCHITECTURES="x86_64" \
+        cmake -DCMAKE_INSTALL_PREFIX=install -DUSE_STATIC_MOLTENVK=ON -DCMAKE_OSX_ARCHITECTURES="x86_64" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/${{ env.VULKANSDK_VERSION }}/macOS/lib/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a \
             ../src
         cmake --build . -j 4
+        cmake --build . --target install/strip
     - name: build-arm64
       run: |
         export VULKAN_SDK=$GITHUB_WORKSPACE/${{ env.VULKANSDK_VERSION }}/macOS
         mkdir build-arm64 && cd build-arm64
-        cmake -DUSE_STATIC_MOLTENVK=ON -DCMAKE_OSX_ARCHITECTURES="arm64" \
+        cmake -DCMAKE_INSTALL_PREFIX=install -DUSE_STATIC_MOLTENVK=ON -DCMAKE_OSX_ARCHITECTURES="arm64" \
             -DCMAKE_CROSSCOMPILING=ON -DCMAKE_SYSTEM_PROCESSOR=arm64 \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
@@ -176,11 +175,12 @@ jobs:
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/${{ env.VULKANSDK_VERSION }}/macOS/lib/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a \
             ../src
         cmake --build . -j 4
+        cmake --build . --target install/strip
     - name: package
       run: |
         mkdir -p ${{ env.PACKAGENAME }}
         cp README.md LICENSE ${{ env.PACKAGENAME }}
-        lipo -create build-x86_64/${{ needs.setup.outputs.APPNAME }} build-arm64/${{ needs.setup.outputs.APPNAME }} -o ${{ env.PACKAGENAME }}/${{ needs.setup.outputs.APPNAME }}
+        lipo -create build-x86_64/install/${{ needs.setup.outputs.APPNAME }} build-arm64/install/${{ needs.setup.outputs.APPNAME }} -o ${{ env.PACKAGENAME }}/${{ needs.setup.outputs.APPNAME }}
         strip ${{ env.PACKAGENAME }}/${{ needs.setup.outputs.APPNAME }}
         cp -r models/* ${{ env.PACKAGENAME }}
         zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
@@ -202,14 +202,15 @@ jobs:
     - name: build
       run: |
         mkdir build; cd build
-        cmake -A x64 ../src
+        cmake -A x64 -DCMAKE_INSTALL_PREFIX=install ../src
         cmake --build . --config Release -j 4
+        cmake --build . --config Release --target install
     - name: package
       run: |
         mkdir ${{ env.PACKAGENAME }}
         Copy-Item -Verbose -Path "README.md" -Destination "${{ env.PACKAGENAME }}"
         Copy-Item -Verbose -Path "LICENSE" -Destination "${{ env.PACKAGENAME }}"
-        Copy-Item -Verbose -Path "build\Release\${{ needs.setup.outputs.APPNAME }}.exe" -Destination "${{ env.PACKAGENAME }}"
+        Copy-Item -Verbose -Path "build\install\bin\${{ needs.setup.outputs.APPNAME }}.exe" -Destination "${{ env.PACKAGENAME }}"
         Copy-Item -Verbose -Path "C:\windows\system32\vcomp140.dll" -Destination "${{ env.PACKAGENAME }}"
         Copy-Item -Verbose -Recurse -Path "models\*" -Destination "${{ env.PACKAGENAME }}"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
@@ -219,19 +220,19 @@ jobs:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
 
-  release:
-    needs: [setup, ubuntu, macos, windows]
-    runs-on: ubuntu-latest
-    steps:
-    - name: download
-      uses: actions/download-artifact@v4
-      with:
-        path: artifacts
-
-    - name: create-release
-      uses: softprops/action-gh-release@v2
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        tag_name: ${{ needs.setup.outputs.VERSION }}
-        name: Release ${{ needs.setup.outputs.VERSION }}
-        files: artifacts/*/*.zip
+  # release:
+  #   needs: [setup, ubuntu, macos, windows]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - name: download
+  #     uses: actions/download-artifact@v4
+  #     with:
+  #       path: artifacts
+  #
+  #   - name: create-release
+  #     uses: softprops/action-gh-release@v2
+  #     with:
+  #       token: ${{ secrets.GITHUB_TOKEN }}
+  #       tag_name: ${{ needs.setup.outputs.VERSION }}
+  #       name: Release ${{ needs.setup.outputs.VERSION }}
+  #       files: artifacts/*/*.zip

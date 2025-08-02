@@ -43,12 +43,7 @@ jobs:
         class BinaryDistribution(Distribution):
             def has_ext_modules(foo):
                 return True
-        setup(
-            name='dummy',
-            version='0.1',
-            packages=find_packages(),
-            distclass=BinaryDistribution
-        )
+        setup(name='dummy', version='0.1', packages=find_packages(), distclass=BinaryDistribution)
         EOF
 
     - name: build
@@ -60,15 +55,11 @@ jobs:
         CIBW_REPAIR_WHEEL_COMMAND: ""
         CIBW_BEFORE_ALL: cd /project/ &&
           mkdir build && cd build &&
-          cmake ../src &&
+          cmake -DCMAKE_INSTALL_PREFIX=/host/tmp/install ../src &&
           cmake --build . -j $(nproc) &&
-          mv waifu2x-ncnn-vulkan /host/tmp/
+          cmake --build . --target install/strip
       with:
         output-dir: wheelhouse3
-    - name: list
-      run: |
-        ls -l
-        ls -l /tmp/
 
   macos:
     runs-on: macos-13

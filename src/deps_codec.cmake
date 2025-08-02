@@ -52,6 +52,7 @@ if(NOT USE_SYSTEM_JPEG)
         CMAKE_ARGS
             -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
             -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+            -DCMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES}
             -DENABLE_SHARED=OFF
             -DENABLE_STATIC=ON
             -DWITH_TURBOJPEG=OFF
@@ -63,7 +64,11 @@ if(NOT USE_SYSTEM_JPEG)
 
     target_include_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/${CMAKE_INSTALL_INCLUDEDIR}")
     target_link_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/${CMAKE_INSTALL_LIBDIR}")
-    set(JPEG_LIBRARIES jpeg)
+    if(WIN32)
+        set(JPEG_LIBRARIES jpeg-static)
+    else()
+        set(JPEG_LIBRARIES jpeg)
+    endif()
 endif()
 
 if(NOT USE_SYSTEM_ZLIB)
@@ -81,6 +86,7 @@ if(NOT USE_SYSTEM_ZLIB)
         CMAKE_ARGS
             -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
             -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+            -DCMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES}
             -DBUILD_SHARED_LIBS=OFF
             -DWITH_GZFILEOP=OFF
             -DZLIB_COMPAT=ON
@@ -101,7 +107,11 @@ if(NOT USE_SYSTEM_ZLIB)
 
     target_include_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/${CMAKE_INSTALL_INCLUDEDIR}")
     target_link_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/${CMAKE_INSTALL_LIBDIR}")
-    set(ZLIB_LIBRARIES z)
+    if(WIN32)
+        set(ZLIB_LIBRARIES zlibstatic)
+    else()
+        set(ZLIB_LIBRARIES z)
+    endif()
 endif()
 
 if(NOT USE_SYSTEM_PNG)
@@ -120,6 +130,7 @@ if(NOT USE_SYSTEM_PNG)
             CMAKE_ARGS
                 -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
                 -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+                -DCMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES}
                 -DPNG_SHARED=OFF
                 -DPNG_STATIC=ON
                 -DPNG_TESTS=OFF
@@ -136,6 +147,7 @@ if(NOT USE_SYSTEM_PNG)
             CMAKE_ARGS
                 -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
                 -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+                -DCMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES}
                 -DPNG_SHARED=OFF
                 -DPNG_STATIC=ON
                 -DPNG_TESTS=OFF
@@ -154,7 +166,11 @@ if(NOT USE_SYSTEM_PNG)
 
     target_include_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/${CMAKE_INSTALL_INCLUDEDIR}")
     target_link_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/${CMAKE_INSTALL_LIBDIR}")
-    set(PNG_LIBRARIES png)
+    if(WIN32)
+        set(PNG_LIBRARIES libpng16_static)
+    else()
+        set(PNG_LIBRARIES png)
+    endif()
 endif()
 
 if(NOT USE_SYSTEM_WEBP)
@@ -172,6 +188,7 @@ if(NOT USE_SYSTEM_WEBP)
         CMAKE_ARGS
             -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
             -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+            -DCMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES}
             -DBUILD_SHARED_LIBS=OFF
             -DWEBP_ENABLE_SIMD=ON
             -DWEBP_BUILD_ANIM_UTILS=OFF
@@ -194,7 +211,11 @@ if(NOT USE_SYSTEM_WEBP)
 
     target_include_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/${CMAKE_INSTALL_INCLUDEDIR}")
     target_link_directories(waifu2x-ncnn-vulkan PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/deps-install/${CMAKE_INSTALL_LIBDIR}")
-    set(WebP_LIBRARIES webp webpdecoder webpdemux webpmux sharpyuv)
+    if(WIN32)
+        set(WebP_LIBRARIES libwebp libwebpdecoder libwebpdemux libwebpmux libsharpyuv)
+    else()
+        set(WebP_LIBRARIES webp webpdecoder webpdemux webpmux sharpyuv)
+    endif()
 endif()
 
 set(DEPS_CODEC_LIBRARIES ${WebP_LIBRARIES} ${JPEG_LIBRARIES} ${PNG_LIBRARIES} ${ZLIB_LIBRARIES})

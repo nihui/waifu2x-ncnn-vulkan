@@ -29,17 +29,36 @@ jobs:
         cmake -A x64 ../src
         cmake --build . --config Release -j 4
 
-  ubuntu:
+  linux:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
-    - name: build
+    - name: create-dummy-setup.py
       run: |
-        mkdir build && cd build
-        cmake ../src
-        cmake --build . -j 4
+        cat << EOF > setup.py
+        from setuptools import setup, find_packages
+        from setuptools.dist import Distribution
+        class BinaryDistribution(Distribution):
+            def has_ext_modules(foo):
+                return True
+        setup(name='dummy', version='0.1', packages=find_packages(), distclass=BinaryDistribution)
+        EOF
+
+    - name: build
+      uses: pypa/cibuildwheel@v3.1.3
+      env:
+        CIBW_ARCHS_LINUX: "x86_64"
+        CIBW_BUILD: 'cp310-manylinux_x86_64'
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_REPAIR_WHEEL_COMMAND: ""
+        CIBW_BEFORE_ALL: cd /project/ &&
+          mkdir build && cd build &&
+          cmake -DCMAKE_INSTALL_PREFIX=/host/tmp/install ../src &&
+          cmake --build . -j $(nproc)
+      with:
+        output-dir: wheelhouse3
 
   macos:
     runs-on: macos-13

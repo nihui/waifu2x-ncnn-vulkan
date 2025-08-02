@@ -93,3 +93,6 @@ if(USE_STATIC_MOLTENVK)
 endif()
 
 target_link_libraries(waifu2x-ncnn-vulkan ${WAIFU2X_LINK_LIBRARIES})
+
+include(GNUInstallDirs)
+install(TARGETS waifu2x-ncnn-vulkan RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

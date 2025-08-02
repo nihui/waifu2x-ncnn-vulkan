@@ -27,11 +27,11 @@ jobs:
         DATE=`date +'%Y%m%d'`
         echo "VERSION=${DATE}" >> $GITHUB_OUTPUT
 
-  ubuntu:
+  linux:
     needs: [setup]
     runs-on: ubuntu-latest
     env:
-      PACKAGENAME: ${{ needs.setup.outputs.APPNAME }}-${{ needs.setup.outputs.VERSION }}-ubuntu
+      PACKAGENAME: ${{ needs.setup.outputs.APPNAME }}-${{ needs.setup.outputs.VERSION }}-linux
     steps:
     - uses: actions/checkout@v4
       with:
@@ -180,7 +180,7 @@ jobs:
       run: |
         mkdir -p ${{ env.PACKAGENAME }}
         cp README.md LICENSE ${{ env.PACKAGENAME }}
-        lipo -create build-x86_64/install/${{ needs.setup.outputs.APPNAME }} build-arm64/install/${{ needs.setup.outputs.APPNAME }} -o ${{ env.PACKAGENAME }}/${{ needs.setup.outputs.APPNAME }}
+        lipo -create build-x86_64/install/bin/${{ needs.setup.outputs.APPNAME }} build-arm64/install/bin/${{ needs.setup.outputs.APPNAME }} -o ${{ env.PACKAGENAME }}/${{ needs.setup.outputs.APPNAME }}
         strip ${{ env.PACKAGENAME }}/${{ needs.setup.outputs.APPNAME }}
         cp -r models/* ${{ env.PACKAGENAME }}
         zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
@@ -221,7 +221,7 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   # release:
-  #   needs: [setup, ubuntu, macos, windows]
+  #   needs: [setup, linux, macos, windows]
   #   runs-on: ubuntu-latest
   #   steps:
   #   - name: download

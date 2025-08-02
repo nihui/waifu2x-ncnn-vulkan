@@ -36,10 +36,19 @@ jobs:
       with:
         submodules: 'recursive'
     - name: build
-      run: |
-        mkdir build && cd build
-        cmake ../src
-        cmake --build . -j 4
+      uses: pypa/cibuildwheel@v3.1.1
+      env:
+        CIBW_ARCHS_LINUX: "x86_64"
+        CIBW_BUILD: 'cp310-manylinux_x86_64'
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_REPAIR_WHEEL_COMMAND: ""
+        CIBW_BEFORE_ALL: yum install gcc-toolset-11 -y &&
+          cd /project/ &&
+          mkdir build && cd build &&
+          cmake ../src &&
+          cmake --build . -j $(nproc)
+      with:
+        output-dir: wheelhouse3
 
   macos:
     runs-on: macos-13

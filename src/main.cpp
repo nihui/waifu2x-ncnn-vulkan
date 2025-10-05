@@ -621,8 +621,10 @@ int main(int argc, char** argv)
     // collect input and output filepath
     std::vector<path_t> input_files;
     std::vector<path_t> output_files;
-    {
-        if (path_is_directory(inputpath) && path_is_directory(outputpath))
+    {   
+        bool input_is_directory = path_is_directory(inputpath);
+        bool output_is_directory = path_is_directory(outputpath);
+        if (input_is_directory && output_is_directory)
         {
             std::vector<path_t> filenames;
             int lr = list_directory(inputpath, filenames);
@@ -662,7 +664,7 @@ int main(int argc, char** argv)
                 output_files[i] = outputpath + PATHSTR('/') + output_filename;
             }
         }
-        else if (!path_is_directory(inputpath) && !path_is_directory(outputpath))
+        else if (!input_is_directory && !output_is_directory)
         {
             input_files.push_back(inputpath);
             output_files.push_back(outputpath);

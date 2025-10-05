@@ -663,13 +663,7 @@ int main(int argc, char** argv)
                 input_files[i] = inputpath + PATHSTR('/') + filename;
                 output_files[i] = outputpath + PATHSTR('/') + output_filename;
             }
-        } else if (!input_is_directory && output_is_directory) {
-            path_t filename = get_file_name_without_path(inputpath);
-            path_t filename_noext = get_file_name_without_extension(filename);
-            input_files.push_back(inputpath);
-            output_files.push_back(outputpath + PATHSTR('/') + filename_noext + PATHSTR('.') + format);
-        }
-        else if (!input_is_directory && !output_is_directory)
+        } else if (!input_is_directory && !output_is_directory)
         {
             input_files.push_back(inputpath);
             output_files.push_back(outputpath);

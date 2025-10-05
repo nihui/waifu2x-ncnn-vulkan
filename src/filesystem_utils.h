@@ -114,19 +114,6 @@ static path_t get_file_extension(const path_t& path)
     return path.substr(dot + 1);
 }
 
-static path_t get_file_name_without_path(const path_t& path) {
-    #if _WIN32
-    size_t separator = path.rfind(PATHSTR('\\'));
-    #else
-    size_t separator = path.rfind(PATHSTR('/'));
-    #endif
-    if (separator == path_t::npos) {
-        return path;
-    }
-
-    return path.substr(separator + 1);
-}
-
 #if _WIN32
 static path_t get_executable_directory()
 {

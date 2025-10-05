@@ -621,8 +621,10 @@ int main(int argc, char** argv)
     // collect input and output filepath
     std::vector<path_t> input_files;
     std::vector<path_t> output_files;
-    {
-        if (path_is_directory(inputpath) && path_is_directory(outputpath))
+    {   
+        bool input_is_directory = path_is_directory(inputpath);
+        bool output_is_directory = path_is_directory(outputpath);
+        if (input_is_directory && output_is_directory)
         {
             std::vector<path_t> filenames;
             int lr = list_directory(inputpath, filenames);
@@ -661,15 +663,20 @@ int main(int argc, char** argv)
                 input_files[i] = inputpath + PATHSTR('/') + filename;
                 output_files[i] = outputpath + PATHSTR('/') + output_filename;
             }
+        } else if (!input_is_directory && output_is_directory) {
+            path_t filename = get_file_name_without_path(inputpath);
+            path_t filename_noext = get_file_name_without_extension(filename);
+            input_files.push_back(inputpath);
+            output_files.push_back(outputpath + PATHSTR('/') + filename_noext + PATHSTR('.') + format);
         }
-        else if (!path_is_directory(inputpath) && !path_is_directory(outputpath))
+        else if (!input_is_directory && !output_is_directory)
         {
             input_files.push_back(inputpath);
             output_files.push_back(outputpath);
         }
         else
         {
-            fprintf(stderr, "inputpath and outputpath must be either file or directory at the same time\n");
+            fprintf(stderr, "inputpath cannot be a directory at the same time as outputpath is a file\n");
             return -1;
         }
     }

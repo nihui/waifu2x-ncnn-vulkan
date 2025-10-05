@@ -670,7 +670,7 @@ int main(int argc, char** argv)
         }
         else
         {
-            fprintf(stderr, "inputpath cannot be a directory at the same time as outputpath is a file\n");
+            fprintf(stderr, "inputpath and outputpath must be either file or directory at the same time\n");
             return -1;
         }
     }

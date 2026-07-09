@@ -141,7 +141,9 @@ if(NOT USE_SYSTEM_NCNN)
     option(WITH_LAYER_mish "" OFF)
     option(WITH_LAYER_statisticspooling "" OFF)
     option(WITH_LAYER_swish "" OFF)
-    option(WITH_LAYER_gemm "" OFF)
+    # the x86 Deconvolution layer creates an inner Gemm layer
+    # when opt.use_sgemm_convolution is enabled
+    option(WITH_LAYER_gemm "" ON)
     option(WITH_LAYER_groupnorm "" OFF)
     option(WITH_LAYER_layernorm "" OFF)
     option(WITH_LAYER_softplus "" OFF)

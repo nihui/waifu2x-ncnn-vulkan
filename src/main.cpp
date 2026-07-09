@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <algorithm>
+#include <atomic>
 #include <queue>
 #include <vector>
 #include <clocale>
@@ -170,6 +171,10 @@ private:
 TaskQueue toproc;
 TaskQueue tosave;
 
+// set by load/save threads when an image fails to decode/encode,
+// so that the process can report a non-zero exit status
+static std::atomic<int> image_io_error(0);
+
 class LoadThreadParams
 {
 public:
@@ -265,6 +270,7 @@ void* load(void* args)
         }
         else
         {
+            image_io_error = 1;
 #if _WIN32
             fwprintf(stderr, L"decode image %ls failed\n", imagepath.c_str());
 #else // _WIN32
@@ -407,6 +413,7 @@ void* save(void* args)
         }
         else
         {
+            image_io_error = 1;
 #if _WIN32
             fwprintf(stderr, L"encode image %ls failed\n", v.outpath.c_str());
 #else
@@ -856,7 +863,16 @@ int main(int argc, char** argv)
 
             waifu2x[i] = new Waifu2x(gpuid[i], tta_mode, num_threads);
 
-            waifu2x[i]->load(paramfullpath, modelfullpath);
+            if (waifu2x[i]->load(paramfullpath, modelfullpath) != 0)
+            {
+                for (int j=0; j<=i; j++)
+                {
+                    delete waifu2x[j];
+                }
+
+                ncnn::destroy_gpu_instance();
+                return 1;
+            }
 
             waifu2x[i]->noise = noise;
             waifu2x[i]->scale = (scale >= 2) ? 2 : scale;
@@ -949,5 +965,5 @@ int main(int argc, char** argv)
 
     ncnn::destroy_gpu_instance();
 
-    return 0;
+    return image_io_error ? 1 : 0;
 }
